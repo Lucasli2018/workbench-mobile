@@ -35,14 +35,14 @@
 
 ## 🚀 快速开始
 
-直接用浏览器打开 `workbench-mobile.html` 即可，无需安装、无需后端、无需构建。
+直接用浏览器打开 `index.html` 即可，无需安装、无需后端、无需构建。
 
 ```
 workbench-mobile/
-├── workbench-mobile.html      # 主应用（单文件，含全部样式与逻辑）
+├── index.html      # 主应用（单文件，含全部样式与逻辑）
 └── workbench-assets/
-    ├── greet-banner.jpg       # 首页 hero 插画（卡通小狗 × 时间机器）
-    └── avatar.jpg             # 抽屉默认头像
+    ├── greet-banner.webp      # 首页 hero 插画（卡通小狗 × 时间机器）
+    └── avatar.webp            # 抽屉默认头像
 ```
 
 > 建议在手机浏览器中打开以获得最佳体验；桌面浏览器也可正常使用（最大宽度 480px 居中布局）。
@@ -80,7 +80,7 @@ workbench-mobile/
 
 ## 🎨 自定义指南
 
-所有可定制内容集中在 `workbench-mobile.html` 的 `<script>` 顶部的 `CONFIG` 对象中：
+所有可定制内容集中在 `index.html` 的 `<script>` 顶部的 `CONFIG` 对象中：
 
 | 配置项 | 说明 |
 | --- | --- |
@@ -101,5 +101,3 @@ MIT
 ---
 
 *用尾巴扫出每一天的节奏，汪。*
---- 微信小程序版本 ---
-miniprogram/ 目录包含完整小程序（首页/模块/洞察/设置），清新高级风格。
