@@ -1,0 +1,55 @@
+<view class="container">
+  <!-- 顶部问候 -->
+  <view class="hero">
+    <view class="hero-text">
+      <text style="font-size:11px;color:#4a5e83;letter-spacing:.08em;">🐕 汪汪时间管理局</text>
+      <h1>{{greeting}}</h1>
+      <text>{{quote}}</text>
+    </view>
+  </view>
+
+  <!-- 今日概览环形 -->
+  <view class="section-title">今日概览</view>
+  <view class="card ring-wrap">
+    <view class="ring-item" wx:for="{{overview}}" wx:key="index">
+      <view class="ring-circle" style="position:relative;">
+        <canvas canvas-id="ring{{index}}" style="width:60px;height:60px;" />
+        <view style="position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:700;color:{{item.color}};">{{item.pct}}%</view>
+      </view>
+      <text class="ring-label">{{item.label}}</text>
+      <text class="ring-sub">{{item.sub}}</text>
+    </view>
+  </view>
+
+  <!-- 置顶任务 -->
+  <view class="section-title">置顶任务</view>
+  <view class="pin-list" wx:if="{{pinned.length > 0}}">
+    <view class="pin-card" wx:for="{{pinned}}" wx:key="id">
+      <view class="pin-icon" style="color:{{item.color}};">🐕</view>
+      <view class="pin-body">
+        <view class="pin-title">{{item.title}}</view>
+        <view class="pin-meta">{{item.meta}}</view>
+      </view>
+      <view class="pin-check {{item.done ? 'on' : ''}}" bindtap="togglePin" data-id="{{item.id}}"></view>
+    </view>
+  </view>
+  <view wx:else class="empty-state">
+    <view class="e-icon">🐕</view>
+    <view class="e-text">在模块中点击星标即可置顶任务到这里</view>
+  </view>
+
+  <!-- 快速记录 -->
+  <view class="section-title">快速记录</view>
+  <view class="quick-grid">
+    <button class="qbtn" wx:for="{{quickAdd}}" wx:key="label" bindtap="quickTap" data-module="{{item.module}}">
+      <view class="qbtn-icon" style="background:{{item.tint}};">🐕</view>
+      <text class="qbtn-label">{{item.label}}</text>
+    </button>
+  </view>
+
+  <!-- 每日一句 -->
+  <view class="quote-block">
+    <view class="quote-tag">🐕 今日一句</view>
+    <view class="quote-text">{{quote}}</view>
+  </view>
+</view>
