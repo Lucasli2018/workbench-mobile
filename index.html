@@ -375,6 +375,29 @@
   .cal-foot svg { color:var(--module-3); }
 
   .hidden { display: none !important; }
+
+  /* ---- finance 折叠分组（月份 → 日期） ---- */
+  .grp { margin-top: 10px; }
+  .grp-head { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
+    padding: 10px 12px; border-radius: var(--radius-tile); background: var(--surface-nested);
+    border: 1px solid var(--border); transition: background .15s; }
+  .grp-head:active { background: var(--accent-muted); }
+  .grp-head .chev { flex:0 0 auto; color: var(--text-secondary); transition: transform .2s ease; }
+  .grp-head.collapsed .chev { transform: rotate(-90deg); }
+  .grp-head.month { background: linear-gradient(100deg, var(--accent-muted), color-mix(in srgb, var(--accent-muted) 55%, transparent)); border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
+  .grp-head.month .grp-title { font-size: 14.5px; font-weight: 800; color: var(--accent); }
+  .grp-head.day { padding: 8px 11px; }
+  .grp-head.day .grp-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .grp-title { flex:0 0 auto; }
+  .grp-sum { margin-left:auto; display:flex; align-items:center; gap:8px; font-size: 12px; font-weight:600; white-space:nowrap; }
+  .grp-sum .gs.inc { color: var(--module-1); }
+  .grp-sum .gs.exp { color: var(--danger); }
+  .grp-sum .gs.bal { color: var(--text-secondary); }
+  .grp-body { /* 展开态默认可见 */ }
+  .grp-head.collapsed + .grp-body { display: none; }
+  .grp-body .rec { margin-top: 8px; }
+  /* 月份体内日期组缩进，体现层级 */
+  .grp-head.month + .grp-body { padding-left: 4px; }
 </style>
 </head>
 <body>
@@ -880,8 +903,9 @@ function renderModule(key){
     head=headHero(m, `${it.length}`, `条记录 · 今日 ${todayN} 条`, null);
   }
   if(m.type==="checkin") extra=renderCalendar(m,it);
-  const body = it.length ? it.map(x=>recHTML(m,x)).join("")
-    : `<div class="empty"><span class="e">${icon(m.icon,26)}</span><div>还没有记录，点上方「新建」添加第一条吧</div></div>`;
+  const body = !it.length
+    ? `<div class="empty"><span class="e">${icon(m.icon,26)}</span><div>还没有记录，点上方「新建」添加第一条吧</div></div>`
+    : (m.type==="finance" ? renderFinanceGroups(m, it) : it.map(x=>recHTML(m,x)).join(""));
   $("#screen").innerHTML = `<div class="greet"><div><h1>${m.name}</h1><p>${m.desc}</p></div>
       <button class="add" id="btn-add">${icon("plus",16,2.2)}新建</button></div>
     <div style="margin-top:16px">${head}${extra}
@@ -957,7 +981,7 @@ function recHTML(m,x){
     const inc=x.type==="income";
     return `<div class="rec ${layoutCls}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
       <div class="rname">${esc(x.title)}</div>
-      <div class="rmeta"><span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${esc(x.category||'其他')}</span><span style="color:var(--text-secondary);font-size:12px">${x.date||''}</span></div>${customBlock}</div>
+      <div class="rmeta"><span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${esc(x.category||'其他')}</span></div>${customBlock}</div>
       <div class="amt ${inc?'inc':'exp'}" style="margin-left:auto">${inc?'+':'-'}¥${x.amount}</div></div></div>`;
   }
   // note
@@ -965,6 +989,70 @@ function recHTML(m,x){
     <div class="rname">${esc(x.title||'无标题')}</div>
     <div class="rmeta">${x.mood?`<span class="badge" style="background:var(--accent-muted);color:var(--accent)">${esc(x.mood)}</span>`:''}<span style="color:var(--text-secondary);font-size:12px">${x.date||''}</span></div>
     ${x.content?`<div class="rnote">${esc(x.content)}</div>`:''}${customBlock}</div></div></div>`;
+}
+
+/* finance 折叠分组：按 月份 → 日期 两级可折叠 */
+function renderFinanceGroups(m, it){
+  const CHEV = '<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  const sumGroup = arr => {
+    const inc = arr.filter(x=>x.type==="income").reduce((s,x)=>s+ +x.amount,0);
+    const exp = arr.filter(x=>x.type==="expense").reduce((s,x)=>s+ +x.amount,0);
+    return { inc, exp, bal: inc-exp };
+  };
+  const fmtMonth = mk => { const [y,mo]=mk.split("-"); return `${y}年${+mo}月`; };
+  const fmtDay = dk => {
+    const [y,mo,da]=dk.split("-");
+    const w=["周日","周一","周二","周三","周四","周五","周六"][new Date(dk+"T00:00:00").getDay()];
+    return `${+mo}月${+da}日 ${w}`;
+  };
+  const chip = (label,val,cls) => `<span class="gs ${cls}">${label}¥${val}</span>`;
+  const sumChips = (s, level) => level==="month"
+    ? chip("收 ",s.inc,"inc")+chip("支 ",s.exp,"exp")+chip("结 ",s.bal,"bal")
+    : chip("收 ",s.inc,"inc")+chip("支 ",s.exp,"exp");
+
+  const curMonth = today().slice(0,7);
+  // 按 月份降序 → 日期降序 排序复制
+  const sorted = it.slice().sort((a,b)=>{
+    const da = a.date || "9999-99-99", db = b.date || "9999-99-99";
+    if(da===db) return (b.id||0)-(a.id||0);
+    return da<db ? 1 : -1;
+  });
+  // 嵌套分组： monthKey -> dayKey -> [items]
+  const months = {};
+  sorted.forEach(x=>{
+    const mk = x.date ? x.date.slice(0,7) : "__nodate";
+    const dk = x.date || "__nodate";
+    (months[mk] = months[mk] || {});
+    (months[mk][dk] = months[mk][dk] || []).push(x);
+  });
+  const monthKeys = Object.keys(months).sort((a,b)=>{
+    if(a==="__nodate") return 1; if(b==="__nodate") return -1;
+    return a<b ? 1 : -1;
+  });
+
+  return monthKeys.map(mk=>{
+    const isCur = mk===curMonth;
+    const monthAll = Object.values(months[mk]).flat();
+    const ms = sumGroup(monthAll);
+    const monthLabel = mk==="__nodate" ? "未标注日期" : fmtMonth(mk);
+    const dayKeys = Object.keys(months[mk]).sort((a,b)=>{
+      if(a==="__nodate") return 1; if(b==="__nodate") return -1;
+      return a<b ? 1 : -1;
+    });
+    const daysHTML = dayKeys.map(dk=>{
+      const arr = months[mk][dk];
+      const ds = sumGroup(arr);
+      const dayLabel = dk==="__nodate" ? "未标注" : fmtDay(dk);
+      return `<div class="grp">
+        <div class="grp-head day js-collapse">${CHEV}<span class="grp-title">${dayLabel}</span><span class="grp-sum">${sumChips(ds,"day")}</span></div>
+        <div class="grp-body">${arr.map(x=>recHTML(m,x)).join("")}</div>
+      </div>`;
+    }).join("");
+    return `<div class="grp">
+      <div class="grp-head month js-collapse ${isCur?'':'collapsed'}">${CHEV}<span class="grp-title">${monthLabel}</span><span class="grp-sum">${sumChips(ms,"month")}</span></div>
+      <div class="grp-body">${daysHTML}</div>
+    </div>`;
+  }).join("");
 }
 
 function streak(log){
@@ -986,6 +1074,7 @@ function wireModule(key){
   $("#screen").querySelectorAll(".js-pin").forEach(el=>el.onclick=e=>{ e.stopPropagation(); const x=(data[key]).find(i=>i.id==el.dataset.id); x.pinned=!x.pinned; persist(); });
   const add=$("#btn-add"); if(add) add.onclick=()=>openEditor(key,null);
   if(m.type==="checkin") wireCalendar(key, data[key]||[]);
+  $("#screen").querySelectorAll(".js-collapse").forEach(el=>el.onclick=()=>el.classList.toggle("collapsed"));
 }
 
 /* ---------- EDITOR MODAL (per type) ---------- */
