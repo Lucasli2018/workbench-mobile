@@ -416,6 +416,15 @@
   .fchip { border:1px solid var(--border); background:var(--surface-card); color:var(--text-secondary);
     font-size:12px; font-weight:600; padding:5px 12px; border-radius:999px; cursor:pointer; font-family:var(--font); transition:background .12s; }
   .fchip.on { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+
+  /* ---- 月度预算 ---- */
+  .budget-row { display:flex; align-items:center; gap:8px; padding:4px 12px 10px; }
+  .budget-row .bbar { flex:1; height:6px; border-radius:999px; background:var(--surface-nested); overflow:hidden; }
+  .budget-row .bbar i { display:block; height:100%; border-radius:999px; }
+  .budget-row .bl { font-size:11.5px; color:var(--text-secondary); font-weight:600; white-space:nowrap; }
+  .budget-row .bl.over { color:var(--danger); }
+  .set-budget { margin:2px 12px 10px; border:1px dashed var(--border); background:transparent; color:var(--text-secondary);
+    font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; cursor:pointer; font-family:var(--font); }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -1090,11 +1099,23 @@ function renderFinanceGroups(m, it){
         <div class="grp-body">${arr.map(x=>recHTML(m,x)).join("")}</div>
       </div>`;
     }).join("");
+    const budgetRow = renderBudgetRow(ms.exp);
     return `<div class="grp">
       <div class="grp-head month js-collapse ${isCur?'':'collapsed'}">${CHEV}<span class="grp-title">${monthLabel}</span><span class="grp-sum">${sumChips(ms,"month")}</span></div>
-      <div class="grp-body">${daysHTML}</div>
+      <div class="grp-body">${budgetRow}${daysHTML}</div>
     </div>`;
   }).join("");
+}
+
+function renderBudgetRow(exp){
+  const b = data.__budget ? +data.__budget : 0;
+  if(!b) return `<div class="budget-row"><button class="set-budget js-budget">设置每月预算</button></div>`;
+  const pct = Math.min(100, Math.round(exp/b*100));
+  const over = exp>b;
+  return `<div class="budget-row">
+    <div class="bbar"><i style="width:${pct}%;background:${over?'var(--danger)':'var(--module-1)'}"></i></div>
+    <span class="bl ${over?'over':''}">已用 ¥${exp} / 预算 ¥${b}${over?` · 超支 ¥${exp-b}`:''}</span>
+  </div>`;
 }
 
 function streak(log){
@@ -1121,6 +1142,10 @@ function wireModule(key){
     if(el.dataset.ftype!==undefined) financeFilter.type=el.dataset.ftype;
     if(el.dataset.fcat!==undefined) financeFilter.cat=el.dataset.fcat;
     renderModule(key);
+  });
+  $("#screen").querySelectorAll(".js-budget").forEach(el=>el.onclick=()=>{
+    const v=window.prompt("设置每月支出预算（元，0 表示不限制）：", data.__budget||"");
+    if(v===null) return; const n=Math.max(0, +v||0); data.__budget=n; persist();
   });
 }
 
