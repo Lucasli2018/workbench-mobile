@@ -409,6 +409,13 @@
   .search-rec:active { opacity:.7; }
   .rec.flash { animation: flash 1.1s ease; }
   @keyframes flash { 0%,100%{ box-shadow:0 0 0 0 transparent; } 20%{ box-shadow:0 0 0 3px var(--accent-muted); } }
+
+  /* ---- 账本筛选 ---- */
+  .filterbar { display:flex; flex-direction:column; gap:8px; margin:4px 0 2px; }
+  .filterbar .frow { display:flex; flex-wrap:wrap; gap:6px; }
+  .fchip { border:1px solid var(--border); background:var(--surface-card); color:var(--text-secondary);
+    font-size:12px; font-weight:600; padding:5px 12px; border-radius:999px; cursor:pointer; font-family:var(--font); transition:background .12s; }
+  .fchip.on { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -636,7 +643,8 @@ const store = {
 };
 let data = store.load();
 let view = "home";
-let searchQuery = "";            // home | insight | <moduleKey>
+let searchQuery = "";
+  let financeFilter = { type:"all", cat:"all" };            // home | insight | <moduleKey>
 function persist(){ store.save(); render(); }
 
 /* ---------- chrome icons ---------- */
@@ -919,14 +927,32 @@ function renderModule(key){
     head=headHero(m, `${it.length}`, `条记录 · 今日 ${todayN} 条`, null);
   }
   if(m.type==="checkin") extra=renderCalendar(m,it);
-  const body = !it.length
+  const viewIt = (m.type==="finance") ? filterFinance(it) : it;
+  const body = !viewIt.length
     ? `<div class="empty"><span class="e">${icon(m.icon,26)}</span><div>还没有记录，点上方「新建」添加第一条吧</div></div>`
-    : (m.type==="finance" ? renderFinanceGroups(m, it) : it.map(x=>recHTML(m,x)).join(""));
+    : (m.type==="finance" ? renderFinanceGroups(m, viewIt) : it.map(x=>recHTML(m,x)).join(""));
+  const filterBar = (m.type==="finance") ? renderFinanceFilter() : "";
   $("#screen").innerHTML = `<div class="greet"><div><h1>${m.name}</h1><p>${m.desc}</p></div>
       <button class="add" id="btn-add">${icon("plus",16,2.2)}新建</button></div>
     <div style="margin-top:16px">${head}${extra}
-      <div class="sec-title">记录</div>${body}</div>`;
+      ${filterBar}<div class="sec-title">记录</div>${body}</div>`;
   wireModule(key);
+}
+
+function filterFinance(it){
+  return it.filter(x=>{
+    if(financeFilter.type!=="all" && x.type!==financeFilter.type) return false;
+    if(financeFilter.cat!=="all" && (x.category||"")!==financeFilter.cat) return false;
+    return true;
+  });
+}
+function renderFinanceFilter(){
+  const m=modOf("money");
+  const types=[["all","全部"],["expense","支出"],["income","收入"]];
+  const cats=[["all","全部"]].concat((m.categories||[]).map(c=>[c,c]));
+  const tChips=types.map(([k,l])=>`<button class="fchip ${financeFilter.type===k?'on':''}" data-ftype="${k}">${l}</button>`).join("");
+  const cChips=cats.map(([k,l])=>`<button class="fchip ${financeFilter.cat===k?'on':''}" data-fcat="${k}">${esc(l)}</button>`).join("");
+  return `<div class="filterbar"><div class="frow">${tChips}</div><div class="frow">${cChips}</div></div>`;
 }
 
 /* per-module hero header: compact strip — icon + big number + label + optional progress bar */
@@ -1091,6 +1117,11 @@ function wireModule(key){
   const add=$("#btn-add"); if(add) add.onclick=()=>openEditor(key,null);
   if(m.type==="checkin") wireCalendar(key, data[key]||[]);
   $("#screen").querySelectorAll(".js-collapse").forEach(el=>el.onclick=()=>el.classList.toggle("collapsed"));
+  $("#screen").querySelectorAll(".fchip").forEach(el=>el.onclick=()=>{
+    if(el.dataset.ftype!==undefined) financeFilter.type=el.dataset.ftype;
+    if(el.dataset.fcat!==undefined) financeFilter.cat=el.dataset.fcat;
+    renderModule(key);
+  });
 }
 
 /* ---------- EDITOR MODAL (per type) ---------- */
