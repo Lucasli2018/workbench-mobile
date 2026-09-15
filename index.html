@@ -432,6 +432,37 @@
   .ob-mod b { display:block; font-size:13.5px; }
   .ob-mod span { display:block; font-size:11.5px; color:var(--text-secondary); }
   .ob-warn { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); background:var(--accent-muted); padding:10px 12px; border-radius:10px; margin:10px 0 0; }
+
+  /* ---------- P1 洞察图表 ---------- */
+  .period-bar { display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 4px; }
+  .pchip { border:1px solid var(--border); background:var(--surface-nested); color:var(--text-secondary);
+    font-size:12px; font-weight:600; padding:5px 12px; border-radius:999px; cursor:pointer; font-family:var(--font); }
+  .pchip.on { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+  .chart-box { margin-top:10px; }
+  .legend-inline { display:flex; gap:14px; margin-top:10px; font-size:11.5px; color:var(--text-secondary); }
+  .legend-inline i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+  .rank-list { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+  .rank-row { display:flex; align-items:center; gap:10px; }
+  .rank-name { font-size:12.5px; width:52px; flex:0 0 auto; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rank-row .pbar { flex:1; margin:0; height:8px; }
+  .rank-val { font-size:11.5px; font-weight:700; color:var(--text); width:92px; text-align:right; flex:0 0 auto; font-variant-numeric:tabular-nums; }
+  .chart-empty { color:var(--text-tertiary); font-size:12.5px; text-align:center; padding:18px 0; }
+  .trend-delta { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-size:12px; color:var(--text-secondary); }
+  .trend-delta em { font-style:normal; font-weight:700; margin-left:3px; }
+  .trend-delta em.up { color:var(--danger); }
+  .trend-delta em.down { color:var(--module-1); }
+  .heat-item { margin-top:12px; }
+  .heat-head { display:flex; align-items:center; justify-content:space-between; font-size:12.5px; color:var(--text); margin-bottom:6px; }
+  .heat-streak { font-size:11.5px; color:var(--module-1); font-weight:600; display:inline-flex; align-items:center; gap:3px; }
+  .budget-mini { margin-top:10px; font-size:12px; color:var(--text-secondary); }
+  .budget-mini b { font-size:13px; }
+  .mini-stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+  .mini-stat { background:var(--surface-nested); border:1px solid var(--border); border-radius:10px; padding:8px 12px; flex:1 0 120px; }
+  .mini-stat span { display:block; font-size:11.5px; color:var(--text-secondary); }
+  .mini-stat b { font-size:14px; color:var(--text); }
+  .recap-line { font-size:13px; color:var(--text); line-height:1.6; margin:8px 0 0; }
+  .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
+  .copy-btn { margin-top:12px; }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -661,6 +692,7 @@ const store = {
 let data = store.load();
 let view = "home";
 let searchQuery = "";
+let insightPeriod = "6m";            // 洞察页时间范围：1m/3m/6m/12m/all
   let financeFilter = { type:"all", cat:"all" };            // home | insight | <moduleKey>
 function persist(){ store.save(); render(); }
 
@@ -875,9 +907,163 @@ function wireHome(){
 }
 
 /* ---------- INSIGHT ---------- */
+
+/* ===================== P1 图表助手 ===================== */
+function fmtMoney(v){ return "¥"+(Math.round((v||0)*100)/100); }
+function toDate(s){ return new Date(s+"T00:00:00"); }
+function monthKeysBack(n){
+  const now=new Date(); const arr=[];
+  for(let i=n-1;i>=0;i--){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1); arr.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); }
+  return arr;
+}
+function allMonthKeys(){
+  const set=new Set((data.money||[]).filter(x=>x.date).map(x=>x.date.slice(0,7)));
+  return [...set].sort();
+}
+function monthAgg(mk){
+  const arr=(data.money||[]).filter(x=>x.date&&x.date.slice(0,7)===mk);
+  const inc=arr.filter(x=>x.type==="income").reduce((s,x)=>s+ +x.amount,0);
+  const exp=arr.filter(x=>x.type==="expense").reduce((s,x)=>s+ +x.amount,0);
+  return { inc, exp, bal: inc-exp, n: arr.length };
+}
+function periodMonths(){
+  if(insightPeriod==="all") return allMonthKeys();
+  const n={"1m":1,"3m":3,"6m":6,"12m":12}[insightPeriod]||6;
+  return monthKeysBack(n);
+}
+function shortMonth(mk){ const p=mk.split("-"); return (+p[1])+"月"; }
+
+/* 收支趋势：分组柱状(收入/支出) + 结余折线 */
+function trendChartSVG(months){
+  const W=320,H=180, pl=12,pr=12,pt=14,pb=24;
+  const plotW=W-pl-pr, plotH=H-pt-pb;
+  const m=months.length; if(!m) return "";
+  const maxV=Math.max(1, ...months.map(x=>Math.max(x.inc,x.exp)));
+  const band=plotW/m, bw=Math.min(13, band*0.32);
+  const bals=months.map(x=>x.bal);
+  let bmin=Math.min(...bals), bmax=Math.max(...bals);
+  if(bmin===bmax){ bmin-=1; bmax+=1; }
+  const yB = v => (pt+plotH) - ((v-bmin)/(bmax-bmin))*(plotH-14) - 7;
+  let bars="", line="";
+  months.forEach((x,i)=>{
+    const cx = pl + band*i + band/2;
+    const hi=(x.inc/maxV)*plotH, he=(x.exp/maxV)*plotH;
+    bars+=`<rect x="${(cx-bw-1).toFixed(1)}" y="${(pt+plotH-hi).toFixed(1)}" width="${bw}" height="${hi.toFixed(1)}" rx="2" fill="var(--module-1)"/>`;
+    bars+=`<rect x="${(cx+1).toFixed(1)}" y="${(pt+plotH-he).toFixed(1)}" width="${bw}" height="${he.toFixed(1)}" rx="2" fill="var(--danger)"/>`;
+    line += (i?"L":"M")+(cx).toFixed(1)+" "+yB(x.bal).toFixed(1)+" ";
+    if(m<=8 || i===0 || i===m-1 || i%2===0) bars+=`<text x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="9" fill="var(--text-tertiary)">${shortMonth(x.mk)}</text>`;
+  });
+  const base=`<line x1="${pl}" y1="${pt+plotH}" x2="${W-pr}" y2="${pt+plotH}" stroke="var(--border)" stroke-width="0.5"/>`;
+  const pline=`<path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${base}${bars}${pline}</svg>`;
+}
+/* 横向条形排行 */
+function hbarSVG(rows){
+  if(!rows||!rows.length) return `<div class="chart-empty">暂无数据</div>`;
+  const max=Math.max(1,...rows.map(r=>r.value));
+  return `<div class="rank-list">`+rows.map(r=>`<div class="rank-row"><span class="rank-name">${esc(r.label)}</span>
+    <div class="pbar"><i style="width:${Math.min(100,r.value/max*100).toFixed(1)}%;background:${r.color}"></i></div>
+    <span class="rank-val">${r.pct!=null?r.pct+"% · ":""}¥${r.value}</span></div>`).join("")+`</div>`;
+}
+/* GitHub 风格热力方格（近 weeks 周） */
+function heatmapSVG(log, weeks){
+  weeks=weeks||12; const cell=12, gap=4, pad=2;
+  const total=weeks*7; const todayI=toDate(today());
+  let cells="";
+  for(let c=0;c<weeks;c++) for(let r=0;r<7;r++){
+    const idx=c*7+r; const d=new Date(todayI); d.setDate(d.getDate()-(total-1-idx));
+    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const on=!!(log&&log[ds]);
+    const x=pad+c*(cell+gap), y=pad+r*(cell+gap);
+    cells+=`<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="2.5" fill="${on?'var(--module-1)':'var(--surface-nested)'}"/>`;
+  }
+  const W=pad*2+weeks*(cell+gap)-gap, H=pad*2+7*(cell+gap)-gap;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">${cells}</svg>`;
+}
+function sparkSVG(vals){
+  if(!vals||vals.length<2) return "";
+  const W=120,H=32, max=Math.max(...vals,1), min=Math.min(...vals,0), rng=(max-min)||1;
+  const pts=vals.map((v,i)=>`${(i/(vals.length-1)*W).toFixed(1)},${(H-4-((v-min)/rng)*(H-8)).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;height:32px;display:block"><polyline points="${pts}" fill="none" stroke="var(--module-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function periodBarHTML(){
+  const opts=[["1m","本月"],["3m","近3月"],["6m","近6月"],["12m","近12月"],["all","全部"]];
+  return `<div class="period-bar">${opts.map(o=>`<button class="pchip ${insightPeriod===o[0]?'on':''}" data-period="${o[0]}">${o[1]}</button>`).join("")}</div>`;
+}
+function sectionEmpty(title,msg){ return `<div class="sec-title">${esc(title)}</div><div class="panel"><div class="chart-empty">${esc(msg)}</div></div>`; }
+function wireInsight(){
+  $("#screen").querySelectorAll(".pchip").forEach(el=>el.onclick=()=>{ insightPeriod=el.dataset.period; renderInsight(); });
+  $("#screen").querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>go(el.dataset.open));
+  $("#screen").querySelectorAll(".copy-btn").forEach(el=>el.onclick=()=>{ try{ navigator.clipboard.writeText(el.dataset.copy); }catch(e){} toast("已复制周报"); });
+}
+
+/* ---- P1-1 账本趋势 ---- */
+function insightTrend(){
+  const months=periodMonths().map(mk=>({mk, ...monthAgg(mk)}));
+  if(!months.length || months.every(x=>x.n===0)) return sectionEmpty("账本趋势","还没有记账数据");
+  const svg=trendChartSVG(months);
+  const last=months[months.length-1], prev=months[months.length-2];
+  let delta="";
+  if(prev && (prev.inc||prev.exp)){
+    const de=last.exp-prev.exp, di=last.inc-prev.inc;
+    const pe=prev.exp?Math.round(de/prev.exp*100):0, pi=prev.inc?Math.round(di/prev.inc*100):0;
+    delta=`<div class="trend-delta">
+      <span>支出 ${fmtMoney(last.exp)} <em class="${de>0?'up':'down'}">${de>0?'▲':'▼'}${Math.abs(pe)}%</em></span>
+      <span>收入 ${fmtMoney(last.inc)} <em class="${di>0?'up':'down'}">${di>0?'▲':'▼'}${Math.abs(pi)}%</em></span>
+      <span>结余 ${fmtMoney(last.bal)}</span></div>`;
+  }
+  return `<div class="sec-title">账本趋势</div>
+    <div class="panel"><div class="ph">${icon("chart",15)} 收支趋势<span class="avg">${months.length} 个月</span></div>
+      <div class="chart-box">${svg}</div>
+      <div class="legend-inline"><span><i style="background:var(--module-1)"></i>收入</span><span><i style="background:var(--danger)"></i>支出</span><span><i style="background:var(--accent)"></i>结余</span></div>
+      ${delta}</div>`;
+}
+
+/* ---- P1-2 账本构成 ---- */
+function insightComposition(){
+  const months=periodMonths();
+  const money=(data.money||[]).filter(x=>x.date&&months.includes(x.date.slice(0,7)));
+  const exps=money.filter(x=>x.type==="expense"), incs=money.filter(x=>x.type==="income");
+  const totalExp=exps.reduce((s,x)=>s+ +x.amount,0), totalInc=incs.reduce((s,x)=>s+ +x.amount,0);
+  const cats=(modOf("money")&&modOf("money").categories)||[];
+  const palette=["#10b981","#ef4444","#2563eb","#f59e0b","#8b5cf6","#ec4899","#14b8a6","#64748b"];
+  const mkSegs=arr=>cats.map(c=>({cat:c,amount:arr.filter(x=>x.category===c).reduce((s,x)=>s+ +x.amount,0)}))
+    .filter(s=>s.amount>0).sort((a,b)=>b.amount-a.amount);
+  const expSegs=mkSegs(exps), incSegs=mkSegs(incs);
+  expSegs.forEach((s,i)=>s.color=palette[i%palette.length]);
+  incSegs.forEach((s,i)=>s.color=palette[i%palette.length]);
+  if(!expSegs.length && !incSegs.length) return sectionEmpty("账本构成","该区间暂无记账");
+  const donutExp=expSegs.length?donutSVG(expSegs):`<div class="donut-empty">${icon("wallet",22)}<span>暂无支出</span></div>`;
+  const donutInc=incSegs.length?donutSVG(incSegs):`<div class="donut-empty">${icon("wallet",22)}<span>暂无收入</span></div>`;
+  const legendOf=segs=>{ const t=segs.reduce((a,x)=>a+x.amount,0)||1; return segs.map(s=>`<div class="legend-item"><span class="legend-dot" style="background:${s.color}"></span><span class="legend-name">${esc(s.cat)}</span><span class="legend-amt">¥${s.amount}</span><span class="legend-pct">${Math.round(s.amount/t*100)}%</span></div>`).join(""); };
+  const b=data.__budget?+data.__budget:0; const thisExp=monthAgg(today().slice(0,7)).exp;
+  const budgetRow=b?`<div class="budget-mini">本月预算执行 <b style="color:${thisExp>b?'var(--danger)':'var(--module-1)'}">${Math.round(thisExp/b*100)}%</b> · ¥${thisExp}/¥${b}</div>`:"";
+  return `<div class="sec-title">账本构成</div>
+    <div class="panel"><div class="ph">${icon("wallet",15)} 支出构成<span class="avg">合计 ¥${totalExp}</span></div>
+      <div class="donut-wrap"><div class="donut">${donutExp}</div><div class="donut-legend">${legendOf(expSegs)}</div></div>
+      ${hbarSVG(expSegs.map(s=>({label:s.cat,value:s.amount,color:s.color,pct:Math.round(s.amount/(totalExp||1)*100)})))}
+      ${budgetRow}</div>
+    <div class="panel" style="margin-top:12px"><div class="ph">${icon("wallet",15)} 收入构成<span class="avg">合计 ¥${totalInc}</span></div>
+      <div class="donut-wrap"><div class="donut">${donutInc}</div><div class="donut-legend">${legendOf(incSegs)}</div></div></div>`;
+}
+
+/* ---- P1-3 习惯热力图 ---- */
+function insightHeatmap(){
+  const items=(data.checkin||[]);
+  if(!items.length) return sectionEmpty("习惯热力图","还没有打卡项");
+  const weeks=12;
+  const heat=items.map(it=>`<div class="heat-item"><div class="heat-head"><span>${esc(it.title)}</span><span class="heat-streak">${icon("flame",12)} 连${streak(it.log)}天</span></div>${heatmapSVG(it.log,weeks)}</div>`).join("");
+  return `<div class="sec-title">习惯热力图</div>
+    <div class="panel"><div class="ph">${icon("leaf",15)} 打卡热力<span class="avg">近 ${weeks} 周</span></div>${heat}</div>`;
+}
+
+/* ---- P1-4 / P1-5 占位（后续填充） ---- */
+function insightProgressWall(){ return ""; }
+function insightRecap(){ return ""; }
+
+
 function renderInsight(){
   // 模块完成度柱状条
-  const DONUT_COLORS=["var(--module-4)","var(--module-3)","var(--module-5)","var(--module-2)","var(--module-1)","var(--danger)","var(--text-tertiary)"];
   const bars = CONFIG.modules.map(m=>{
     const it=data[m.key]||[]; let pct=0, label="";
     if(m.type==="todo"){ const d=it.filter(x=>x.done).length; pct=it.length?Math.round(d/it.length*100):0; label=`${d}/${it.length}`; }
@@ -894,28 +1080,16 @@ function renderInsight(){
     <div class="pbar"><i style="width:${Math.min(100,b.pct)}%;background:${b.m.color}"></i></div>
     <span class="bar-pct">${b.label}</span></div>`).join("");
 
-  // 支出构成 donut
-  const money = data.money||[];
-  const exps = money.filter(x=>x.type==="expense");
-  const totalExp = exps.reduce((s,x)=>s+ +x.amount,0);
-  const cats = (modOf("money")&&modOf("money").categories)||[];
-  let segs = cats.map(c=>({ cat:c, amount: exps.filter(x=>x.category===c).reduce((s,x)=>s+ +x.amount,0) }))
-    .filter(s=>s.amount>0).sort((a,b)=>b.amount-a.amount);
-  segs.forEach((s,i)=>s.color=DONUT_COLORS[i%DONUT_COLORS.length]);
-  const donut = segs.length ? donutSVG(segs) : `<div class="donut-empty">${icon("wallet",22)}<span>暂无</span></div>`;
-  const legend = segs.map(s=>{ const p=totalExp?Math.round(s.amount/totalExp*100):0;
-    return `<div class="legend-item"><span class="legend-dot" style="background:${s.color}"></span>
-      <span class="legend-name">${esc(s.cat)}</span><span class="legend-amt">¥${s.amount}</span><span class="legend-pct">${p}%</span></div>`; }).join("");
-
-  $("#screen").innerHTML = `<div class="greet"><div><h1>洞察</h1><p>各模块进展一览 · 记录—执行—统计—反馈</p></div></div>
-    <div class="sec-title">模块完成度</div>
-    <div class="panel"><div class="ph">${icon("chart",15)} 模块完成度<span class="avg">均 ${barAvg}%</span></div>
-      <div class="bar-list">${barList}</div></div>
-    <div class="sec-title">支出构成</div>
-    <div class="panel"><div class="ph">${icon("wallet",15)} 支出构成<span class="avg">合计 ¥${totalExp}</span></div>
-      <div class="donut-wrap"><div class="donut">${donut}${segs.length?`<span class="donut-mid">¥${totalExp}</span>`:''}</div>
-        <div class="donut-legend">${legend}</div></div></div>`;
-  $("#screen").querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>go(el.dataset.open));
+  let html = `<div class="greet"><div><h1>洞察</h1><p>数据会说话 · 趋势 · 构成 · 习惯 · 复盘</p></div></div>`;
+  html += periodBarHTML();
+  html += `<div class="sec-title">模块完成度</div><div class="panel"><div class="ph">${icon("chart",15)} 模块完成度<span class="avg">均 ${barAvg}%</span></div><div class="bar-list">${barList}</div></div>`;
+  html += insightTrend();
+  html += insightComposition();
+  html += insightHeatmap();
+  html += insightProgressWall();
+  html += insightRecap();
+  $("#screen").innerHTML = html;
+  wireInsight();
 }
 
 /* ---------- MODULE VIEW ---------- */
