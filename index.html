@@ -398,6 +398,17 @@
   .grp-body .rec { margin-top: 8px; }
   /* 月份体内日期组缩进，体现层级 */
   .grp-head.month + .grp-body { padding-left: 4px; }
+
+  /* ---- 全局搜索 ---- */
+  .search-box { display:flex; align-items:center; gap:8px; background:var(--surface-card); border:1px solid var(--border); border-radius:999px; padding:8px 12px; margin:6px 0 14px; box-shadow:var(--shadow-card); }
+  .search-box .s-ic { color:var(--text-tertiary); flex:0 0 auto; }
+  .search-box input { flex:1; border:none; outline:none; background:transparent; font-size:14px; color:var(--text); font-family:var(--font); }
+  .search-box input::placeholder { color:var(--text-tertiary); }
+  .search-box .s-clear { border:none; background:transparent; color:var(--text-tertiary); cursor:pointer; display:grid; place-items:center; padding:2px; }
+  .search-rec { cursor:pointer; margin-top:8px; }
+  .search-rec:active { opacity:.7; }
+  .rec.flash { animation: flash 1.1s ease; }
+  @keyframes flash { 0%,100%{ box-shadow:0 0 0 0 transparent; } 20%{ box-shadow:0 0 0 3px var(--accent-muted); } }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -406,6 +417,7 @@
     <button class="menu-btn" id="btn-menu" data-page-node-id="JaBxvQjujQEaXOxDw1qG0j"></button>
     <div class="title" id="topTitle" data-page-node-id="divEcwxCbCsN1JGB7jIM6Z">我的工作台<small id="topSub" data-page-node-id="dgkoDHq9sjib2DbIE8dXkd">Personal Workbench</small></div>
     <span class="date-chip" id="dateChip" data-page-node-id="WlRBii4sZ7B38XMzoBIYFj"></span>
+    <button class="menu-btn" id="btn-search"></button>
   </div>
   <div id="screen" data-page-node-id="bya68ZG2HhMW1HRMnkCaKN"></div>
 </div>
@@ -592,6 +604,7 @@ const ICONS = {
   download:'<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/>',
   upload:'<path d="M12 16V5"/><path d="M8 8l4-4 4 4"/><path d="M5 19h14"/>',
   database:'<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
 };
 function icon(name, size=22, sw=1.7){
   const path = ICONS[name] || ICONS.grid;
@@ -622,7 +635,8 @@ const store = {
   save(){ localStorage.setItem(CONFIG.storageKey, JSON.stringify(data)); },
 };
 let data = store.load();
-let view = "home";            // home | insight | <moduleKey>
+let view = "home";
+let searchQuery = "";            // home | insight | <moduleKey>
 function persist(){ store.save(); render(); }
 
 /* ---------- chrome icons ---------- */
@@ -633,6 +647,8 @@ $("#drawerClose").innerHTML = icon("close", 16);
   const wd = "日一二三四五六"[now.getDay()];
   $("#dateChip").innerHTML = `${icon("calendar",13)} ${now.getMonth()+1}/${String(now.getDate()).padStart(2,'0')} 周${wd}`;
 })();
+$("#btn-search").innerHTML = icon("search",20);
+$("#btn-search").onclick = ()=>{ view = (view==="search")?"home":"search"; render(); };
 document.querySelectorAll('#nav .n').forEach(n=>{
   const t=n.dataset.nav;
   if(t==="home") n.innerHTML = icon("home",21)+"<span>首页</span>";
@@ -936,7 +952,7 @@ function recHTML(m,x){
   // feature layout: 大图在上 + 标题 + 正文 (适合有图记录)
   if(layout==='feature' && x.image){
     const body=(x.content||x.note||'').trim();
-    return `<div class="rec ${layoutCls}">${acts}<div class="top" data-edit="${x.id}" style="flex-direction:column">
+    return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top" data-edit="${x.id}" style="flex-direction:column">
       ${thumb}
       <div class="feat-title">${esc(x.title||'无标题')}</div>
       ${body?`<div class="feat-body">${esc(body)}</div>`:''}
@@ -945,7 +961,7 @@ function recHTML(m,x){
   // quote layout: 大字居中 (适合短文本/灵感/金句)
   if(layout==='quote'){
     const text=(x.content||x.title||'').trim();
-    return `<div class="rec ${layoutCls}">${acts}<div class="top" data-edit="${x.id}" style="flex-direction:column;align-items:center;text-align:center">
+    return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top" data-edit="${x.id}" style="flex-direction:column;align-items:center;text-align:center">
       <div class="quote-text">${esc(text)}</div>
       ${x.mood?`<div class="quote-meta">${esc(x.mood)}${x.date?` · ${esc(x.date)}`:''}</div>`:(x.date?`<div class="quote-meta">${esc(x.date)}</div>`:'')}
       ${customBlock?`<div style="margin-top:8px">${customBlock}</div>`:''}</div></div>`;
@@ -954,7 +970,7 @@ function recHTML(m,x){
   // default layout (原有逻辑)
   if(m.type==="todo"){
     const p=(m.priorities||[]).find(p=>p.key===x.priority);
-    return `<div class="rec ${layoutCls}">${acts}<div class="top">
+    return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">
       <div class="chk js-chk ${x.done?'on':''}" data-id="${x.id}">${chkMark}</div>
       ${thumb}
       <div class="body" data-edit="${x.id}"><div class="rname ${x.done?'done':''}">${esc(x.title)}</div>
@@ -963,7 +979,7 @@ function recHTML(m,x){
   }
   if(m.type==="checkin"){
     const on=!!(x.log&&x.log[today()]); const st=streak(x.log);
-    return `<div class="rec ${layoutCls}">${acts}<div class="top">
+    return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">
       <div class="chk js-chk ${on?'on':''}" data-id="${x.id}">${chkMark}</div>
       ${thumb}
       <div class="body" data-edit="${x.id}"><div class="rname">${esc(x.title)}</div>
@@ -971,7 +987,7 @@ function recHTML(m,x){
   }
   if(m.type==="progress"){
     const pct=Math.min(100,Math.round((x.current/x.target)*100||0));
-    return `<div class="rec ${layoutCls}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
+    return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
       <div class="rname">${esc(x.title)}</div>
       <div class="rmeta"><span style="color:var(--text-secondary);font-size:13px">${x.current}/${x.target} ${x.unit||m.unit||''} · ${pct}%</span></div>
       <div class="pbar"><i style="width:${pct}%;background:${m.color}"></i></div>
@@ -979,13 +995,13 @@ function recHTML(m,x){
   }
   if(m.type==="finance"){
     const inc=x.type==="income";
-    return `<div class="rec ${layoutCls}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
+    return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
       <div class="rname">${esc(x.title)}</div>
       <div class="rmeta"><span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${esc(x.category||'其他')}</span></div>${customBlock}</div>
       <div class="amt ${inc?'inc':'exp'}" style="margin-left:auto">${inc?'+':'-'}¥${x.amount}</div></div></div>`;
   }
   // note
-  return `<div class="rec ${layoutCls}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
+  return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
     <div class="rname">${esc(x.title||'无标题')}</div>
     <div class="rmeta">${x.mood?`<span class="badge" style="background:var(--accent-muted);color:var(--accent)">${esc(x.mood)}</span>`:''}<span style="color:var(--text-secondary);font-size:12px">${x.date||''}</span></div>
     ${x.content?`<div class="rnote">${esc(x.content)}</div>`:''}${customBlock}</div></div></div>`;
@@ -1192,6 +1208,7 @@ function confirmDelete(key,id){
 /* ---------- router / nav ---------- */
 function go(v){ view=v; closeDrawer(); render(); window.scrollTo({top:0}); }
 function render(){
+  if(view==="search"){ $("#topTitle").firstChild.textContent="搜索"; $("#topSub").textContent="跨模块查找记录"; $("#nav").querySelectorAll(".n").forEach(n=>n.classList.remove("active")); renderSearch(); return; }
   // top title
   if(view==="home"){ $("#topTitle").firstChild.textContent=CONFIG.owner; $("#topSub").textContent=CONFIG.slogan; }
   else if(view==="insight"){ $("#topTitle").firstChild.textContent="洞察"; $("#topSub").textContent="统计与复盘"; }
@@ -1203,6 +1220,44 @@ function render(){
   if(view==="home") renderHome();
   else if(view==="insight") renderInsight();
   else renderModule(view);
+}
+
+/* ---------- 全局搜索（跨模块） ---------- */
+function renderSearch(){
+  $("#screen").innerHTML = `
+    <div class="sec-title">搜索</div>
+    <div class="search-box"><span class="s-ic">${icon("search",18)}</span>
+      <input id="searchInput" type="search" placeholder="搜索任务、记账、笔记、灵感…" value="${attr(searchQuery)}" autocomplete="off"/>
+      ${searchQuery?`<button class="s-clear" id="sClear">${icon("close",16)}</button>`:""}</div>
+    <div id="searchResults"></div>`;
+  const inp=$("#searchInput");
+  inp.focus();
+  inp.oninput=()=>{ searchQuery=inp.value.trim(); renderSearchResults(); };
+  const clr=$("#sClear"); if(clr) clr.onclick=()=>{ searchQuery=""; inp.value=""; inp.focus(); renderSearchResults(); };
+  renderSearchResults();
+}
+function renderSearchResults(){
+  const box=$("#searchResults"); if(!box) return;
+  const q=searchQuery.toLowerCase();
+  if(!q){ box.innerHTML=`<div class="empty"><span class="e">${icon("search",26)}</span><div>输入关键词，跨所有模块查找记录</div></div>`; return; }
+  const groups=[];
+  CONFIG.modules.forEach(m=>{
+    const hits=(data[m.key]||[]).filter(x=>{
+      const hay=[x.title,x.content,x.note,x.category,x.mood,x.priority,x.type,(x.log&&typeof x.log==="object"?Object.keys(x.log).length+"":""),x.date]
+        .filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+    if(hits.length) groups.push({m,hits});
+  });
+  if(!groups.length){ box.innerHTML=`<div class="empty"><span class="e">${icon("search",26)}</span><div>没有找到匹配「${esc(searchQuery)}」的记录</div></div>`; return; }
+  box.innerHTML=groups.map(({m,hits})=>`
+    <div class="sec-title">${icon(m.icon,15)} ${m.name}<span class="more">${hits.length} 条</span></div>
+    ${hits.map(x=>`<div class="search-rec" data-goto="${m.key}" data-rid="${x.id}">${recHTML(m,x)}</div>`).join("")}
+  `).join("");
+  box.querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{
+    const k=el.dataset.goto, rid=el.dataset.rid; view=k; render();
+    setTimeout(()=>{ const t=document.querySelector(`[data-rid="${rid}"]`); if(t){ t.scrollIntoView({block:"center"}); t.classList.add("flash"); } },60);
+  });
 }
 
 /* ---------- drawer ---------- */
