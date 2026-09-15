@@ -425,6 +425,7 @@
   .budget-row .bl.over { color:var(--danger); }
   .set-budget { margin:2px 12px 10px; border:1px dashed var(--border); background:transparent; color:var(--text-secondary);
     font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; cursor:pointer; font-family:var(--font); }
+  .badge.rep { display:inline-flex; align-items:center; gap:3px; }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -621,6 +622,7 @@ const ICONS = {
   upload:'<path d="M12 16V5"/><path d="M8 8l4-4 4 4"/><path d="M5 19h14"/>',
   database:'<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
 };
 function icon(name, size=22, sw=1.7){
   const path = ICONS[name] || ICONS.grid;
@@ -1030,9 +1032,10 @@ function recHTML(m,x){
   }
   if(m.type==="finance"){
     const inc=x.type==="income";
+    const rep = x.repeat ? `<span class="badge" style="background:var(--accent-muted);color:var(--accent)">${icon("repeat",11)} 每月</span>` : '';
     return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
       <div class="rname">${esc(x.title)}</div>
-      <div class="rmeta"><span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${esc(x.category||'其他')}</span></div>${customBlock}</div>
+      <div class="rmeta"><span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${esc(x.category||'其他')}</span>${rep}</div>${customBlock}</div>
       <div class="amt ${inc?'inc':'exp'}" style="margin-left:auto">${inc?'+':'-'}¥${x.amount}</div></div></div>`;
   }
   // note
@@ -1174,6 +1177,9 @@ function openEditor(key, item){
       <div class="frow"><div class="field"><label>项目</label><input id="f-title" value="${attr(d.title)}" placeholder="午餐 / 稿费"/></div>
       <div class="field"><label>金额 ¥</label><input id="f-amt" type="number" value="${d.amount??''}" placeholder="0"/></div></div>
       <div class="field"><label>分类</label><div class="seg" style="flex-wrap:wrap" id="f-cat">${(m.categories||[]).map(c=>`<div class="opt ${c===d.category?'on':''}" data-v="${attr(c)}" style="flex:0 0 auto">${esc(c)}</div>`).join("")}</div></div>
+      <div class="field"><label>周期记账</label><div class="seg" id="f-repeat">
+        <div class="opt ${d.repeat?'on':''}" data-v="repeat">每月重复</div>
+        <div class="opt ${!d.repeat?'on':''}" data-v="once">单次</div></div></div>
       <div class="field"><label>日期</label><input id="f-date" type="date" value="${d.date||isoToday()}"/></div>`;
   } else { // note
     fields=`<div class="field"><label>标题</label><input id="f-title" value="${attr(d.title)}" placeholder="给这条起个名"/></div>
@@ -1219,7 +1225,7 @@ function openEditor(key, item){
     d.layout=seg("#f-layout")||'default';
     if(m.type==="todo"){ d.priority=seg("#f-prio")||d.priority; d.note=(val("#f-note")||"").trim(); }
     else if(m.type==="progress"){ d.current=Math.max(0,+val("#f-cur")||0); d.target=Math.max(1,+val("#f-tgt")||1); d.unit=(val("#f-unit")||"").trim(); d.note=(val("#f-note")||"").trim(); }
-    else if(m.type==="finance"){ d.type=seg("#f-ftype")||"expense"; d.amount=Math.max(0,+val("#f-amt")||0); d.category=seg("#f-cat")||(m.categories&&m.categories[0])||"其他"; d.date=val("#f-date"); }
+    else if(m.type==="finance"){ d.type=seg("#f-ftype")||"expense"; d.amount=Math.max(0,+val("#f-amt")||0); d.category=seg("#f-cat")||(m.categories&&m.categories[0])||"其他"; d.date=val("#f-date"); d.repeat=(seg("#f-repeat")==="repeat"); }
     else if(m.type==="note"){ d.mood=seg("#f-mood")||d.mood||""; d.content=(val("#f-content")||"").trim(); d.date=val("#f-date"); }
     // save custom fields
     (m.fields||[]).forEach(f=>{
@@ -1240,7 +1246,7 @@ function newItem(m){
   if(m.type==="todo") item={...base, title:"", priority:(m.priorities&&m.priorities[1]?m.priorities[1].key:"P1"), done:false, note:""};
   else if(m.type==="checkin") item={...base, title:"", log:{}};
   else if(m.type==="progress") item={...base, title:"", current:0, target: (m.unit==="页"?100:20), unit:m.unit||"", note:""};
-  else if(m.type==="finance") item={...base, title:"", type:"expense", amount:"", category:(m.categories&&m.categories[0])||"其他", date:isoToday()};
+  else if(m.type==="finance") item={...base, title:"", type:"expense", amount:"", category:(m.categories&&m.categories[0])||"其他", date:isoToday(), repeat:false};
   else item={...base, title:"", content:"", mood:(m.moods&&m.moods[0])||"", date:isoToday()};
   // initialize custom fields
   (m.fields||[]).forEach(f=>{ if(!(f.key in item)) item[f.key]= f.type==="select"?(f.options&&f.options[0]||""):""; });
@@ -1470,6 +1476,24 @@ $("#importInput").onchange = async e => {
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function attr(s){ return esc(s).replace(/"/g,'&quot;'); }
 
+function ensureRecurring(){
+  const cur = today().slice(0,7);
+  if(data.__clonedMonth===cur) return;
+  const fin = data.finance||[];
+  const prevs = [...new Set(fin.filter(x=>x.repeat && x.date && x.date.slice(0,7)<cur).map(x=>x.date.slice(0,7)))].sort();
+  if(prevs.length){
+    const srcMonth = prevs[prevs.length-1];
+    fin.filter(x=>x.repeat && x.date && x.date.slice(0,7)===srcMonth).forEach(x=>{
+      const day = x.date.slice(8);
+      const clone = Object.assign({}, x, { id: Date.now()+Math.floor(Math.random()*1000), date: cur+"-"+day, repeat:true });
+      fin.unshift(clone);
+    });
+  }
+  data.__clonedMonth = cur;
+  persist();
+}
+
+ensureRecurring();
 buildDrawer();
 render();
 </script>
