@@ -426,6 +426,12 @@
   .set-budget { margin:2px 12px 10px; border:1px dashed var(--border); background:transparent; color:var(--text-secondary);
     font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; cursor:pointer; font-family:var(--font); }
   .badge.rep { display:inline-flex; align-items:center; gap:3px; }
+  /* ---- 首次引导 ---- */
+  .modal.ob .ob-mods { display:flex; flex-direction:column; gap:8px; margin:6px 0 4px; }
+  .ob-mod { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; background:var(--surface-nested); color:var(--text-primary); }
+  .ob-mod b { display:block; font-size:13.5px; }
+  .ob-mod span { display:block; font-size:11.5px; color:var(--text-secondary); }
+  .ob-warn { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); background:var(--accent-muted); padding:10px 12px; border-radius:10px; margin:10px 0 0; }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -1104,7 +1110,7 @@ function renderFinanceGroups(m, it){
     }).join("");
     const budgetRow = renderBudgetRow(ms.exp);
     return `<div class="grp">
-      <div class="grp-head month js-collapse ${isCur?'':'collapsed'}">${CHEV}<span class="grp-title">${monthLabel}</span><span class="grp-sum">${sumChips(ms,"month")}</span></div>
+      <div class="grp-head month js-collapse ${(data.__financeCollapsed && (mk in data.__financeCollapsed)) ? (data.__financeCollapsed[mk]?'collapsed':'') : (isCur?'':'collapsed')}" data-mk="${mk}">${CHEV}<span class="grp-title">${monthLabel}</span><span class="grp-sum">${sumChips(ms,"month")}</span></div>
       <div class="grp-body">${budgetRow}${daysHTML}</div>
     </div>`;
   }).join("");
@@ -1140,7 +1146,12 @@ function wireModule(key){
   $("#screen").querySelectorAll(".js-pin").forEach(el=>el.onclick=e=>{ e.stopPropagation(); const x=(data[key]).find(i=>i.id==el.dataset.id); x.pinned=!x.pinned; persist(); });
   const add=$("#btn-add"); if(add) add.onclick=()=>openEditor(key,null);
   if(m.type==="checkin") wireCalendar(key, data[key]||[]);
-  $("#screen").querySelectorAll(".js-collapse").forEach(el=>el.onclick=()=>el.classList.toggle("collapsed"));
+  $("#screen").querySelectorAll(".js-collapse").forEach(el=>el.onclick=()=>{
+    el.classList.toggle("collapsed");
+    if(el.classList.contains("month")){
+      const mk=el.dataset.mk; data.__financeCollapsed=data.__financeCollapsed||{}; data.__financeCollapsed[mk]=el.classList.contains("collapsed"); store.save();
+    }
+  });
   $("#screen").querySelectorAll(".fchip").forEach(el=>el.onclick=()=>{
     if(el.dataset.ftype!==undefined) financeFilter.type=el.dataset.ftype;
     if(el.dataset.fcat!==undefined) financeFilter.cat=el.dataset.fcat;
@@ -1332,16 +1343,21 @@ function buildDrawer(){
   $("#drawerList").innerHTML=items.join("");
   $("#drawerList").querySelectorAll("[data-go]").forEach(el=>el.onclick=()=>go(el.dataset.go));
 
-  // 数据工具：导出 / 导入
+  // 数据工具：导出 / 导入 / 帮助
   $("#drawerTools").innerHTML = [
     `<div class="ditem" data-tool="export">${icon("download",20)}导出数据</div>`,
     `<div class="ditem" data-tool="import">${icon("upload",20)}导入数据</div>`,
+    `<div class="ditem" data-tool="help">${icon("book",20)}玩法 / 帮助</div>`,
   ].join("");
   $("#drawerTools").querySelectorAll("[data-tool]").forEach(el=>{
     el.onclick = () => {
       const t = el.dataset.tool;
       closeDrawer();
-      setTimeout(() => (t === "export" ? exportData() : $("#importInput").click()), 180);
+      setTimeout(() => {
+        if(t==="export") exportData();
+        else if(t==="import") $("#importInput").click();
+        else if(t==="help") showOnboarding();
+      }, 180);
     };
   });
 }
@@ -1493,9 +1509,25 @@ function ensureRecurring(){
   persist();
 }
 
+function showOnboarding(){
+  const mods = CONFIG.modules.map(m=>`<div class="ob-mod">${icon(m.icon,18)}<div><b>${esc(m.name)}</b><span>${esc(m.desc)}</span></div></div>`).join("");
+  const overlay=document.createElement("div"); overlay.className="overlay";
+  overlay.innerHTML=`<div class="modal ob">
+    <div class="grab"></div>
+    <h2>欢迎来到 ${esc(CONFIG.owner)}</h2>
+    <div class="sub">${esc(CONFIG.slogan)}</div>
+    <div class="ob-mods">${mods}</div>
+    <p class="ob-warn">${icon("database",15)} 所有数据只保存在本机浏览器，清缓存或换设备会丢失，记得常点「导出数据」备份。</p>
+    <div class="modal-actions"><button class="btn" id="ob-ok">开始使用</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector("#ob-ok").onclick=()=>{ data.__onboarded=true; store.save(); overlay.remove(); };
+}
+
 ensureRecurring();
 buildDrawer();
 render();
+if(!data.__onboarded) showOnboarding();
 </script>
 </body>
 </html>
