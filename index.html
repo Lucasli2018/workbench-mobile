@@ -1058,8 +1058,47 @@ function insightHeatmap(){
 }
 
 /* ---- P1-4 / P1-5 占位（后续填充） ---- */
-function insightProgressWall(){ return ""; }
-function insightRecap(){ return ""; }
+function insightProgressWall(){
+  const read=(data.read||[]), sport=(data.sport||[]);
+  if(!read.length && !sport.length) return sectionEmpty("进度墙","还没有阅读 / 运动记录");
+  const readDone=read.reduce((s,x)=>s+(+x.current||0),0);
+  const readTarget=read.reduce((s,x)=>s+(+x.target||0),0);
+  const sportDone=sport.reduce((s,x)=>s+(+x.current||0),0);
+  const readList=read.map(x=>{ const pct=Math.min(100,Math.round((x.current/x.target)*100||0));
+    return `<div class="rank-row"><span class="rank-name">${esc(x.title)}</span>
+      <div class="pbar"><i style="width:${pct}%;background:var(--module-2)"></i></div>
+      <span class="rank-val">${x.current}/${x.target}${x.unit||''}</span></div>`; }).join("");
+  const sportStats=sport.map(x=>`<div class="mini-stat"><span>${esc(x.title)}</span><b>${x.current}/${x.target}${x.unit||''}</b></div>`).join("");
+  let html=`<div class="sec-title">进度墙</div>`;
+  if(read.length) html+=`<div class="panel"><div class="ph">${icon("book",15)} 阅读进度<span class="avg">累计 ${readDone}/${readTarget} 页</span></div>${readList}</div>`;
+  if(sport.length) html+=`<div class="panel" style="margin-top:12px"><div class="ph">${icon("activity",15)} 运动累计<span class="avg">${sportDone} ${sport[0].unit||'分钟'}</span></div><div class="mini-stats">${sportStats}</div></div>`;
+  return html;
+}
+function insightRecap(){
+  const mk=today().slice(0,7);
+  const money=(data.money||[]).filter(x=>x.date&&x.date.slice(0,7)===mk);
+  const exp=money.filter(x=>x.type==="expense").reduce((s,x)=>s+ +x.amount,0);
+  const inc=money.filter(x=>x.type==="income").reduce((s,x)=>s+ +x.amount,0);
+  let best=0; (data.checkin||[]).forEach(x=>{ best=Math.max(best, streak(x.log)); });
+  const books=(data.read||[]).length, notes=(data.note||[]).length;
+  const line=`本月记账 ${money.length} 笔（收 ¥${inc} / 支 ¥${exp}），最长打卡连续 ${best} 天，在读 ${books} 本、灵感 ${notes} 条。`;
+  const anoms=[];
+  const b=data.__budget?+data.__budget:0;
+  if(b && exp>b) anoms.push(`本月支出 ¥${exp} 已超预算 ¥${b}`);
+  const lm=(function(){ const d=new Date(); d.setDate(0); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); })();
+  const curC={}, lastC={};
+  (data.money||[]).filter(x=>x.type==="expense").forEach(x=>{ const k=x.date.slice(0,7);
+    if(k===mk) curC[x.category]=(curC[x.category]||0)+ +x.amount;
+    if(k===lm) lastC[x.category]=(lastC[x.category]||0)+ +x.amount; });
+  let topCat=null, topAmt=0; Object.entries(curC).forEach(([c,v])=>{ if(v>topAmt){ topAmt=v; topCat=c; } });
+  if(topCat && lastC[topCat] && topAmt>lastC[topCat]*1.5) anoms.push(`「${topCat}」支出较上月增 ${Math.round((topAmt-lastC[topCat])/lastC[topCat]*100)}%`);
+  const report=`【${CONFIG.owner}·月度复盘】本月记账 ${money.length} 笔（收 ¥${inc} / 支 ¥${exp}），最长打卡连续 ${best} 天，在读 ${books} 本、灵感 ${notes} 条。`+(anoms.length?" 提醒："+anoms.join("；"):"");
+  return `<div class="sec-title">智能复盘</div>
+    <div class="panel"><div class="ph">${icon("chart",15)} 本月一句话</div>
+      <p class="recap-line">${esc(line)}</p>
+      ${anoms.length?`<div class="anomaly">${icon("bolt",13)} ${anoms.map(esc).join("；")}</div>`:''}
+      <button class="btn ghost copy-btn" data-copy="${esc(report)}">复制周报</button></div>`;
+}
 
 
 function renderInsight(){
