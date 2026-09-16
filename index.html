@@ -717,6 +717,19 @@
   .chk-line.on .cbox { background:var(--accent); border-color:var(--accent); }
   .chk-line.on .cbox svg { opacity:1; }
   .chk-line .cnum { margin-left:auto; font-size:11.5px; color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+
+  /* ---------- P3-3 性能与规模 ---------- */
+  .sk { padding-top: 6px; }
+  .sk-row { height: 64px; border-radius: var(--radius-card); background: var(--surface-card);
+    border: 1px solid var(--border); margin-bottom: 10px; position: relative; overflow: hidden; }
+  .sk-row::after { content:""; position:absolute; inset:0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 7%, transparent), transparent);
+    animation: skg 1.2s ease-in-out infinite; }
+  @keyframes skg { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  .rec-more { display:flex; align-items:center; justify-content:center; gap:7px; padding:15px 0 8px;
+    font-size:13px; font-weight:600; color:var(--text-secondary); cursor:pointer;
+    -webkit-tap-highlight-color: transparent; }
+  .rec-more:active { color:var(--accent); }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -727,7 +740,7 @@
     <span class="date-chip" id="dateChip" data-page-node-id="WlRBii4sZ7B38XMzoBIYFj"></span>
     <button class="menu-btn" id="btn-search"></button>
   </div>
-  <div id="screen" data-page-node-id="bya68ZG2HhMW1HRMnkCaKN"></div>
+  <div id="screen" data-page-node-id="bya68ZG2HhMW1HRMnkCaKN"><div class="sk" id="bootSk" aria-hidden="true"><div class="sk-row"></div><div class="sk-row"></div><div class="sk-row"></div><div class="sk-row"></div></div></div>
 </div>
 
 <!-- bottom nav -->
@@ -1442,51 +1455,42 @@ function renderInsight(){
 
 /* ---------- MODULE VIEW ---------- */
 function renderModule(key){
+  clearLazy();
   const m=modOf(key); const it=data[key]||[];
-  const t=today();
-  let head="", extra="";
-  if(m.type==="finance"){
-    head=renderFinanceSummary();
-  } else if(m.type==="todo"){
-    const done=it.filter(x=>x.done).length; const pct=it.length?Math.round(done/it.length*100):0;
-    head=headHero(m, `${done}/${it.length}`, "今日已完成", pct);
-  } else if(m.type==="checkin"){
-    const done=it.filter(x=>x.log&&x.log[t]).length; const pct=it.length?Math.round(done/it.length*100):0;
-    head=headHero(m, `${done}/${it.length}`, "今日已打卡", pct);
-  } else if(m.type==="progress"){
-    const p=avgProgress(it);
-    head=headHero(m, `${p.value}%`, `平均进度 · ${it.length} 项`, p.value);
-  } else if(m.type==="note"){
-    const todayN=it.filter(x=>x.date===t).length;
-    head=headHero(m, `${it.length}`, `条记录 · 今日 ${todayN} 条`, null);
-  }
-  if(m.type==="checkin") extra=renderCalendar(m,it);
-  if(m.type==="todo") extra=renderTodoArchive();
-  if(m.type==="finance") extra=renderTemplateChips();
   // P2-5 标签筛选失效时自动回到「全部」
   if(m.type==="note" && noteTag!=="all" && !it.some(x=>(x.tags||[]).includes(noteTag))) noteTag="all";
-  const viewIt = (m.type==="finance")
-    ? filterFinance(it)
-    : (m.type==="note" && noteTag!=="all") ? it.filter(x=>(x.tags||[]).includes(noteTag)) : it;
+  const head = moduleHeadHTML(m, it);
+  const extra = moduleExtraHTML(m, it);
+  const viewIt = moduleView(key, m, it);
   const emptyHTML = `<div class="empty"><span class="e">${icon(m.icon,26)}</span><div>还没有记录，点上方「新建」添加第一条吧</div></div>`;
   let body;
   if(m.type==="finance"){
     body = viewIt.length ? renderFinanceGroups(m, viewIt) : emptyHTML;
+    pageCtx = { key:key, shown: viewIt.length };     // 记账按月份分组折叠，不分页
   } else if(!viewIt.length){
     body = emptyHTML;
+    pageCtx = { key:key, shown: 0 };
   } else {
-    const pin=viewIt.filter(x=>x.pinned), rest=viewIt.filter(x=>!x.pinned);
-    body = (pin.length?`<div class="sec-title">${icon("star",15)} 置顶<span class="more">${pin.length}</span></div>${pin.map(x=>recHTML(m,x)).join("")}`:"")
-         + (pin.length&&rest.length?`<div class="sec-title">其余记录<span class="more">${rest.length}</span></div>`:"")
-         + rest.map(x=>recHTML(m,x)).join("");
+    // P3-3 分页：置顶全展示，其余记录首屏 PAGE_SIZE 条，其余滚动加载
+    const pin = viewIt.filter(x=>x.pinned), rest = viewIt.filter(x=>!x.pinned);
+    const shown = Math.min(rest.length, PAGE_SIZE);
+    const left = rest.length - shown;
+    pageCtx = { key:key, shown: shown };
+    body = `<div id="recList">`
+      + pinSectionHTML(m, pin)
+      + (pin.length && rest.length ? `<div class="sec-title">其余记录<span class="more">${rest.length}</span></div>` : "")
+      + rest.slice(0, shown).map(x=>recHTML(m,x)).join("")
+      + `</div>`
+      + (left > 0 ? moreHTML(left) : "");
   }
   const filterBar = (m.type==="finance") ? renderFinanceFilter() : (m.type==="note" ? renderTagBar(key) : "");
   $("#screen").innerHTML = `<div class="greet"><div><h1>${m.name}</h1><p>${m.desc}</p></div>
       <button class="add-batch ${batchMode?'on':''}" id="btn-batch" title="批量操作" aria-label="批量操作">${icon("check",16,2.4)}</button>
       <button class="add" id="btn-add">${icon("plus",16,2.2)}新建</button></div>
-    <div style="margin-top:16px">${head}${extra}
+    <div style="margin-top:16px"><div id="modHero">${head}</div><div id="modExtra">${extra}</div>
       ${filterBar}<div class="sec-title">记录</div>${body}</div>`;
   wireModule(key);
+  setupLazy(key);
 }
 
 function filterFinance(it){
@@ -1614,6 +1618,189 @@ function recHTML(m,x){
 }
 
 /* finance 折叠分组：按 月份 → 日期 两级可折叠 */
+/* ===================== P3-3 性能与规模 ===================== */
+const PAGE_SIZE = 50;                 // 单模块首屏渲染条数，其余滚动加载
+let pageCtx = { key:null, shown:0 };  // 当前模块已渲染的「其余记录」条数
+let recObserver = null;               // 滚动加载观察器
+let delegateKey = null;               // 事件委托当前生效的模块 key
+
+function skeletonHTML(n){
+  let out = `<div class="sk">`;
+  for(let i=0;i<n;i++) out += `<div class="sk-row"></div>`;
+  return out + `</div>`;
+}
+function moduleView(key, m, it){
+  if(m.type==="finance") return filterFinance(it);
+  if(m.type==="note" && noteTag!=="all") return it.filter(x=>(x.tags||[]).includes(noteTag));
+  return it;
+}
+function moduleHeadHTML(m, it){
+  const t = today();
+  if(m.type==="finance") return renderFinanceSummary();
+  if(m.type==="todo"){
+    const done=it.filter(x=>x.done).length; const pct=it.length?Math.round(done/it.length*100):0;
+    return headHero(m, `${done}/${it.length}`, "今日已完成", pct);
+  }
+  if(m.type==="checkin"){
+    const done=it.filter(x=>x.log&&x.log[t]).length; const pct=it.length?Math.round(done/it.length*100):0;
+    return headHero(m, `${done}/${it.length}`, "今日已打卡", pct);
+  }
+  if(m.type==="progress"){ const p=avgProgress(it); return headHero(m, `${p.value}%`, `平均进度 · ${it.length} 项`, p.value); }
+  if(m.type==="note"){ const todayN=it.filter(x=>x.date===t).length; return headHero(m, `${it.length}`, `条记录 · 今日 ${todayN} 条`, null); }
+  return "";
+}
+function moduleExtraHTML(m, it){
+  if(m.type==="checkin") return renderCalendar(m, it);
+  if(m.type==="todo") return renderTodoArchive();
+  if(m.type==="finance") return renderTemplateChips();
+  return "";
+}
+function pinSectionHTML(m, pin){
+  if(!pin.length) return "";
+  return `<div class="sec-title">${icon("star",15)} 置顶<span class="more">${pin.length}</span></div>`
+       + pin.map(x=>recHTML(m,x)).join("");
+}
+function moreHTML(left){
+  return `<div class="rec-more" id="recMore" role="button" tabindex="0">${icon("chevron",14,2)} 继续加载 ${left} 条</div>`;
+}
+function clearLazy(){
+  if(recObserver){ try{ recObserver.disconnect(); }catch(e){} recObserver = null; }
+}
+function setupLazy(key){
+  clearLazy();
+  const more = $("#recMore"); if(!more) return;
+  more.onclick = () => loadMore(key);
+  more.onkeydown = e => { if(e.key==="Enter" || e.key===" ") { e.preventDefault(); loadMore(key); } };
+  if("IntersectionObserver" in window){
+    recObserver = new IntersectionObserver(es => { es.forEach(e => { if(e.isIntersecting) loadMore(key); }); }, { rootMargin:"320px 0px" });
+    recObserver.observe(more);
+  }
+}
+function loadMore(key){
+  if(pageCtx.key !== key) return;
+  const m = modOf(key); if(!m) return;
+  const viewIt = moduleView(key, m, data[key]||[]);
+  const rest = viewIt.filter(x=>!x.pinned);
+  const next = Math.min(rest.length, pageCtx.shown + PAGE_SIZE);
+  if(next <= pageCtx.shown) return;
+  const list = $("#recList"); if(!list) return;
+  const host = document.createElement("div");
+  host.className = "pg";
+  host.innerHTML = rest.slice(pageCtx.shown, next).map(x=>recHTML(m,x)).join("");
+  list.appendChild(host);
+  pageCtx.shown = next;
+  const left = rest.length - next;
+  const more = $("#recMore");
+  if(left > 0){ if(more) more.innerHTML = `${icon("chevron",14,2)} 继续加载 ${left} 条`; }
+  else { clearLazy(); if(more) more.remove(); }
+  if(m.type==="todo") wireDrag(key);
+}
+
+/* ---- 局部刷新：只重建被改动的那条记录 + 顶部统计 ---- */
+function refreshRecord(key, id){
+  const m = modOf(key); if(!m) return false;
+  const x = (data[key]||[]).find(i=>i.id==id);
+  const node = $("#screen").querySelector(`.rec[data-rid="${String(id).replace(/"/g,"")}"]`);
+  if(!x || !node) return false;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = recHTML(m, x);
+  const fresh = tmp.firstElementChild;
+  if(!fresh) return false;
+  node.replaceWith(fresh);
+  return true;
+}
+function refreshHead(key){
+  const m = modOf(key); if(!m) return;
+  const it = data[key]||[];
+  const h = $("#modHero"), e = $("#modExtra");
+  if(h) h.innerHTML = moduleHeadHTML(m, it);
+  if(e) e.innerHTML = moduleExtraHTML(m, it);
+}
+// 保存 + 局部重建：命中当前列表就只换一条，否则退回整页重绘
+function softRefresh(key, id){
+  store.save();
+  if(view !== key){ render(); return; }
+  if(id == null || !refreshRecord(key, id)){ render(); return; }
+  refreshHead(key);
+  wireModule(key);              // 只重绑交互，列表 DOM 与分页进度都保留
+}
+
+/* ---- 事件委托：记录级交互统一在 #screen 上处理（只挂一次） ---- */
+const REC_ROUTES = [
+  { sel:".js-sub",     act:"sub" },
+  { sel:".js-chk",     act:"chk" },
+  { sel:".js-del",     act:"del" },
+  { sel:".js-pin",     act:"pin" },
+  { sel:".js-focus",   act:"focus" },
+  { sel:".js-prog",    act:"prog" },
+  { sel:".js-ckminus", act:"ckminus" },
+  { sel:".js-tplsave", act:"tplsave" },
+  { sel:".js-tag",     act:"tag" },
+  { sel:".js-drag",    act:"none" },      // 拖拽把手只负责拖动，不触发编辑
+  { sel:"[data-edit]", act:"edit" },
+];
+// 返回最先命中的动作：越靠前的选择器越优先（子项 / 小按钮 优先于整张卡片）
+function pickRecordAct(hit){
+  for(const r of REC_ROUTES){
+    const el = hit(r.sel);
+    if(el) return { act:r.act, sel:r.sel, el:el };
+  }
+  return null;
+}
+function onScreenClick(e){
+  const key = delegateKey;
+  if(!key || batchMode) return;
+  const m = modOf(key); if(!m) return;
+  const pick = pickRecordAct(sel => (e.target && e.target.closest) ? e.target.closest(sel) : null);
+  if(!pick) return;
+  const el = pick.el, id = el.dataset.id;
+  const find = () => (data[key]||[]).find(i=>i.id==id);
+  switch(pick.act){
+    case "sub": {
+      e.stopPropagation();
+      const x = find(); if(!x || !x.subs) return;
+      const sub = x.subs[+el.dataset.i]; if(!sub) return;
+      sub.done = !sub.done;
+      if(x.subs.length && x.subs.every(t=>t.done)) x.done = true;
+      else if(x.subs.some(t=>!t.done)) x.done = false;
+      bump(10); softRefresh(key, id);
+      return;
+    }
+    case "chk": {
+      e.stopPropagation();
+      const x = find(); if(!x) return;
+      if(m.type==="todo"){ x.done = !x.done; }
+      else if(m.type==="checkin"){
+        x.log = x.log || {};
+        const tt = today(); const goal = Math.max(1, +x.goal||1);
+        if(goal<=1){ x.log[tt] ? delete x.log[tt] : x.log[tt]=1; }
+        else { x.log[tt] = Math.min(goal, logCount(x.log, tt)+1); }
+        bump(10);
+      }
+      else return;
+      softRefresh(key, id);
+      return;
+    }
+    case "del":     { e.stopPropagation(); confirmDelete(key, id); return; }
+    case "pin":     { e.stopPropagation(); const x=find(); if(!x) return; x.pinned=!x.pinned; persist(); return; }
+    case "focus":   { e.stopPropagation(); const x=find(); if(!x) return; startPomo(key, x); return; }
+    case "prog":    { e.stopPropagation(); const x=find(); if(!x) return; bumpProgress(key, x, +el.dataset.n||0); return; }
+    case "ckminus": {
+      e.stopPropagation();
+      const x = find(); if(!x) return;
+      x.log = x.log || {}; const tt = today();
+      const c = logCount(x.log, tt) - 1;
+      if(c<=0) delete x.log[tt]; else x.log[tt] = c;
+      softRefresh(key, id);
+      return;
+    }
+    case "tplsave": { e.stopPropagation(); saveAsTemplate(id); return; }
+    case "tag":     { e.stopPropagation(); noteTag = el.dataset.tag; renderModule(key); return; }
+    case "edit":    { const x = find(); if(x) openEditor(key, x); return; }
+    default:        return;
+  }
+}
+
 function renderFinanceGroups(m, it){
   const CHEV = '<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
   const sumGroup = arr => {
@@ -2039,6 +2226,8 @@ function wireDrag(key){
   const screen=$("#screen");
   const rows=()=>[...screen.querySelectorAll(".rec[data-rid]")].filter(n=>n.querySelector(".js-drag"));
   screen.querySelectorAll(".js-drag").forEach(h=>{
+    if(h.dataset.dw) return;                  // 已挂过就跳过（软刷新会重复调用）
+    h.dataset.dw = "1";
     h.addEventListener("pointerdown", ev=>{
       if(ev.button && ev.button!==0) return;
       ev.preventDefault(); ev.stopPropagation();
@@ -2121,7 +2310,9 @@ function renderTodoArchive(){
 }
 
 function wireModule(key){
+  // 注意：这里不清理滚动加载观察器——软刷新只重绑交互、不重建列表，观察器必须继续有效
   const m=modOf(key);
+  delegateKey = batchMode ? null : key;      // P3-3 事件委托只在业务模块生效
   // P2-6 批量模式：只保留筛选 / 标签 / 日历与批量交互
   if(batchMode){
     $("#screen").classList.add("batch");
@@ -2138,23 +2329,10 @@ function wireModule(key){
     addBatchBoxes(); paintBatchBar();
     return;
   }
+  $("#screen").classList.remove("batch");   // 退出批量模式：清掉残留类，否则行内小按钮会一直隐藏
   paintBatchBar();
   const bb0=$("#btn-batch"); if(bb0) bb0.onclick=()=>batchToggle();
-  $("#screen").querySelectorAll(".js-chk").forEach(el=>el.onclick=e=>{
-    e.stopPropagation(); const x=(data[key]).find(i=>i.id==el.dataset.id);
-    if(m.type==="todo"){ x.done=!x.done; }
-    else if(m.type==="checkin"){
-      x.log=x.log||{};
-      const tt=today(); const goal=Math.max(1,+x.goal||1);
-      if(goal<=1){ x.log[tt]?delete x.log[tt]:x.log[tt]=1; }
-      else { x.log[tt]=Math.min(goal, logCount(x.log,tt)+1); }
-      bump(10);
-    }
-    persist();
-  });
-  $("#screen").querySelectorAll("[data-edit]").forEach(el=>el.onclick=()=>openEditor(key,(data[key]).find(i=>i.id==el.dataset.edit)));
-  $("#screen").querySelectorAll(".js-del").forEach(el=>el.onclick=e=>{ e.stopPropagation(); confirmDelete(key, el.dataset.id); });
-  $("#screen").querySelectorAll(".js-pin").forEach(el=>el.onclick=e=>{ e.stopPropagation(); const x=(data[key]).find(i=>i.id==el.dataset.id); x.pinned=!x.pinned; persist(); });
+  // P3-3 记录级交互（勾选 / 删除 / 置顶 / 子项 / 进度 / 番茄钟 / 编辑 …）统一走 #screen 事件委托
   const add=$("#btn-add"); if(add) add.onclick=()=>openEditor(key,null);
   if(m.type==="checkin") wireCalendar(key, data[key]||[]);
   $("#screen").querySelectorAll(".js-collapse").forEach(el=>el.onclick=()=>{
@@ -2172,47 +2350,14 @@ function wireModule(key){
     const v=window.prompt("设置每月支出预算（元，0 表示不限制）：", data.__budget||"");
     if(v===null) return; const n=Math.max(0, +v||0); data.__budget=n; persist();
   });
-  // P2-1 子任务勾选
-  $("#screen").querySelectorAll(".js-sub").forEach(el=>el.onclick=e=>{
-    e.stopPropagation();
-    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x||!x.subs) return;
-    const sub=x.subs[+el.dataset.i]; if(!sub) return;
-    sub.done=!sub.done;
-    if(x.subs.length && x.subs.every(t=>t.done)) x.done=true;
-    else if(x.subs.some(t=>!t.done)) x.done=false;
-    bump(10); persist();
-  });
-  // P2-5 笔记标签筛选
+  // P2-5 笔记标签筛选（标签条在记录列表之外，仍逐元素绑定）
   $("#screen").querySelectorAll("[data-tagnav]").forEach(el=>el.onclick=()=>{ noteTag=el.dataset.tagnav; renderModule(key); });
-  $("#screen").querySelectorAll(".js-tag").forEach(el=>el.onclick=e=>{ e.stopPropagation(); noteTag=el.dataset.tag; renderModule(key); });
   // P2-4 记账：区间聚合 / 模板 / 分类管理 / CSV
   $("#screen").querySelectorAll("[data-frange]").forEach(el=>el.onclick=()=>{ finRange=el.dataset.frange; renderModule(key); });
   $("#screen").querySelectorAll(".js-tpluse").forEach(el=>el.onclick=()=>useTemplate(+el.dataset.i));
   $("#screen").querySelectorAll(".js-tplman").forEach(el=>el.onclick=()=>openTplManager());
   $("#screen").querySelectorAll(".js-catman").forEach(el=>el.onclick=()=>openCatManager());
   $("#screen").querySelectorAll(".js-csv").forEach(el=>el.onclick=()=>exportFinanceCSV());
-  $("#screen").querySelectorAll(".js-tplsave").forEach(el=>el.onclick=e=>{ e.stopPropagation(); saveAsTemplate(el.dataset.id); });
-  // P2-3 进度快捷 +N / -N
-  $("#screen").querySelectorAll(".js-prog").forEach(el=>el.onclick=e=>{
-    e.stopPropagation();
-    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x) return;
-    bumpProgress(key, x, +el.dataset.n||0);
-  });
-  // P2-2 打卡减一
-  $("#screen").querySelectorAll(".js-ckminus").forEach(el=>el.onclick=e=>{
-    e.stopPropagation();
-    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x) return;
-    x.log=x.log||{}; const tt=today();
-    const c=logCount(x.log,tt)-1;
-    if(c<=0) delete x.log[tt]; else x.log[tt]=c;
-    persist();
-  });
-  // P2-1 番茄钟
-  $("#screen").querySelectorAll(".js-focus").forEach(el=>el.onclick=e=>{
-    e.stopPropagation();
-    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x) return;
-    startPomo(key,x);
-  });
   // P2-1 拖拽排序（仅 todo）
   if(m.type==="todo") wireDrag(key);
 }
@@ -2531,6 +2676,8 @@ function go(v){
   view=v; closeDrawer(); render(); window.scrollTo({top:0});
 }
 function render(){
+  clearLazy();
+  delegateKey = null;
   if(view==="search"){ $("#topTitle").firstChild.textContent="搜索"; $("#topSub").textContent="跨模块查找记录"; $("#nav").querySelectorAll(".n").forEach(n=>n.classList.remove("active")); renderSearch(); return; }
   // top title
   if(view==="home"){ $("#topTitle").firstChild.textContent=CONFIG.owner; $("#topSub").textContent=CONFIG.slogan; }
@@ -2881,6 +3028,7 @@ $("#nav").querySelectorAll(".n").forEach(n=>n.onclick=()=>{
   if(t==="drawer") openDrawer();
   else go(t);
 });
+$("#screen").addEventListener("click", onScreenClick);   // P3-3 记录级事件委托（全局只挂一次）
 
 /* ---------- avatar upload ---------- */
 $("#brandCam").innerHTML = icon("camera",18);
@@ -3182,6 +3330,7 @@ render();
 initPWA();
 capWarnOnce();
 if(!data.__onboarded) showOnboarding();
+if($("#bootSk")) $("#bootSk").remove();
 </script>
 </body>
 </html>
