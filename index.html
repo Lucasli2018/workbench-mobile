@@ -96,6 +96,12 @@
     /* ---- 字体与布局 ---- */
     --font: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     --nav-h: 62px;                   /* 底部导航栏高度 */
+    /* ---- P3-5 安全区（刘海屏 / 手势条 / 圆角屏） ---- */
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --kb: 0px;                       /* 软键盘占位高度，由 JS 写入 */
   }
 
   /* ============================================================
@@ -177,12 +183,12 @@
     background-size: 28px 28px, 28px 28px, cover;
     background-position: center, center, center;
     opacity: .9; }
-  .app { padding: 0 16px calc(var(--nav-h) + 26px); }
+  .app { padding: 0 calc(16px + var(--safe-r)) calc(var(--nav-h) + var(--safe-b) + 26px) calc(16px + var(--safe-l)); }
   svg { display: block; }
 
   /* ---------- top bar ---------- */
   .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px;
-    padding: 14px 2px 12px; backdrop-filter: blur(10px);
+    padding: calc(14px + var(--safe-t)) 2px 12px; backdrop-filter: blur(10px);
     background: linear-gradient(180deg, color-mix(in srgb, var(--page-bg) 94%, transparent), color-mix(in srgb, var(--page-bg) 50%, transparent)); }
   .topbar .menu-btn { width: 38px; height: 38px; border: none; border-radius: var(--radius-tile); background: var(--surface-card);
     box-shadow: var(--shadow-card); display: grid; place-items: center; cursor: pointer; color: var(--text); }
@@ -362,6 +368,7 @@
   .scrim { position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(2px); z-index: 40; opacity:0; pointer-events:none; transition: opacity .22s; }
   .scrim.show { opacity:1; pointer-events:auto; }
   .drawer { position: fixed; top:0; bottom:0; left:0; width: 296px; max-width: 82vw; z-index: 50; transform: translateX(-104%);
+    padding-left: var(--safe-l); padding-top: var(--safe-t); 
     transition: transform .26s cubic-bezier(.2,.8,.25,1); overflow-y:auto;
     background: linear-gradient(180deg, var(--drawer-bg-top), var(--drawer-bg)); color:var(--drawer-text); }
   .drawer.show { transform: translateX(0); }
@@ -387,7 +394,7 @@
   .overlay { position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(3px); z-index: 60;
     display:flex; align-items:flex-end; justify-content:center; animation: fade .16s ease; }
   @keyframes fade { from { opacity:0; } }
-  .modal { background: var(--surface-card); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
+  .modal { background: var(--surface-card); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; padding: 22px 20px calc(22px + var(--safe-b) + var(--kb));
     width: 100%; max-width: 480px; box-shadow: 0 -20px 50px color-mix(in srgb, var(--text) 24%, transparent); animation: up .24s cubic-bezier(.2,.8,.25,1); max-height: 88vh; overflow-y:auto; }
   @keyframes up { from { transform: translateY(30px); opacity:0; } }
   .modal .grab { width: 40px; height: 4px; border-radius:999px; background: var(--border-input); margin: 0 auto 16px; }
@@ -455,7 +462,7 @@
   .cal-cell.on { color:#fff; }
   .cal-cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
   .cal-cell:active { transform: scale(.92); }
-  .cal-toast { position:fixed; left:50%; bottom:calc(var(--nav-h) + 16px); transform:translateX(-50%) translateY(16px);
+  .cal-toast { position:fixed; left:50%; bottom:calc(var(--nav-h) + var(--safe-b) + 16px); transform:translateX(-50%) translateY(16px);
     background:var(--text); color:var(--surface-card); font-size:13px; font-weight:600; padding:11px 16px; border-radius:999px;
     box-shadow:var(--shadow-overlay); z-index:70; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; display:flex; align-items:center; gap:10px; }
   .cal-toast.show { opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
@@ -562,7 +569,7 @@
   .th-dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; }
 
   /* ---- P3-1 PWA 添加到主屏提示条 ---- */
-  .a2hs { position:fixed; left:50%; bottom:calc(var(--nav-h) + 12px); transform:translate(-50%, 190%); z-index:58;
+  .a2hs { position:fixed; left:50%; bottom:calc(var(--nav-h) + var(--safe-b) + 12px); transform:translate(-50%, 190%); z-index:58;
     display:flex; align-items:center; gap:9px; padding:10px 12px; border-radius:22px; max-width:calc(100vw - 24px);
     background:var(--surface-card); border:1px solid var(--border);
     box-shadow:0 12px 30px color-mix(in srgb, var(--text) 22%, transparent);
@@ -592,7 +599,7 @@
   #screen.batch .rec .drag,
   #screen.batch .rec .chk,
   #screen.batch .rec .mini-act { display:none; }
-  .batchbar { position:fixed; left:50%; bottom:calc(var(--nav-h) + 12px); transform:translateX(-50%); z-index:56;
+  .batchbar { position:fixed; left:50%; bottom:calc(var(--nav-h) + var(--safe-b) + 12px); transform:translateX(-50%); z-index:56;
     display:flex; align-items:center; gap:7px; padding:8px 11px; border-radius:999px; max-width:calc(100vw - 24px);
     background:var(--surface-card); border:1px solid var(--border);
     box-shadow:0 12px 30px color-mix(in srgb, var(--text) 22%, transparent); }
@@ -672,7 +679,7 @@
     gap:4px; font-family:var(--font); }
   .rec .mini-act:hover { border-color:var(--accent); color:var(--accent); }
   .rec-arch .arch-rec { box-shadow:none; background:var(--surface-nested); }
-  .pomo { position:fixed; left:50%; bottom:calc(var(--nav-h) + 14px); z-index:55; transform:translate(-50%, 170%);
+  .pomo { position:fixed; left:50%; bottom:calc(var(--nav-h) + var(--safe-b) + 14px); z-index:55; transform:translate(-50%, 170%);
     display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:999px; max-width:calc(100vw - 28px);
     background:var(--surface-card); border:1px solid var(--border);
     box-shadow:0 12px 30px color-mix(in srgb, var(--text) 22%, transparent);
@@ -730,6 +737,33 @@
     font-size:13px; font-weight:600; color:var(--text-secondary); cursor:pointer;
     -webkit-tap-highlight-color: transparent; }
   .rec-more:active { color:var(--accent); }
+
+  /* ---------- P3-5 手势与反馈 ---------- */
+  html, body { overscroll-behavior-y: contain; }
+  .rec { touch-action: pan-y; }
+  .rec.swiping { padding: 0; overflow: hidden; background: transparent; }
+  .rec-slide { position:relative; padding: 13px 14px; background: var(--surface-card);
+    border-radius: calc(var(--radius-tile) - 1px); will-change: transform; }
+  .rec.swiping .rec-slide { transition: transform .2s cubic-bezier(.22,1,.36,1); }
+  .rec-bg { position:absolute; inset:0; display:flex; align-items:center; gap:6px;
+    padding: 0 18px; font-size: 12.5px; font-weight: 700; color:#fff; opacity:0;
+    border-radius: var(--radius-tile); transition: opacity .12s linear; }
+  .rec-bg svg { flex: 0 0 auto; }
+  .rec-bg.lb { justify-content: flex-start; background: var(--accent); }
+  .rec-bg.rb { justify-content: flex-end; background: var(--danger); }
+  .ptr { position: fixed; left: 50%; top: calc(var(--safe-t) + 6px); z-index: 45;
+    transform: translate(-50%, -180%); display: flex; align-items: center; gap: 7px;
+    padding: 7px 15px; border-radius: 999px; background: var(--surface-card);
+    border: 1px solid var(--border); box-shadow: var(--shadow-card);
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    transition: transform .24s cubic-bezier(.22,1,.36,1); -webkit-tap-highlight-color: transparent; }
+  .ptr.show { transform: translate(-50%, 0); }
+  .ptr.ready { color: var(--accent); border-color: var(--accent); }
+  .ptr .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--border);
+    border-top-color: var(--accent); animation: spin .7s linear infinite; }
+  .ptr.busy .spin { display: block; }
+  .ptr:not(.busy) .spin { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -1748,6 +1782,7 @@ function pickRecordAct(hit){
   return null;
 }
 function onScreenClick(e){
+  if(Date.now() - swipeSuppress < 350) return;   // P3-5 刚完成滑动，别把这次抬手当成点击
   const key = delegateKey;
   if(!key || batchMode) return;
   const m = modOf(key); if(!m) return;
@@ -2664,6 +2699,7 @@ function confirmDelete(key,id){
   overlay.onclick=e=>{ if(e.target===overlay) close(); };
   overlay.querySelector("#c-cancel").onclick=close;
   overlay.querySelector("#c-ok").onclick=()=>{
+    bump(20);
     const removed = softDelete(key, id);
     persist(); close();
     if(removed) undoToast(`已删除「${esc(removed.item.title||"记录")}」`, ()=>undoDelete(removed));
@@ -2728,6 +2764,162 @@ function renderSearchResults(){
     const k=el.dataset.goto, rid=el.dataset.rid; view=k; render();
     setTimeout(()=>{ const t=document.querySelector(`[data-rid="${rid}"]`); if(t){ t.scrollIntoView({block:"center"}); t.classList.add("flash"); } },60);
   });
+}
+
+/* ===================== P3-5 移动端手势与反馈 ===================== */
+const SWIPE_MAX = 96;      // 卡片最大位移
+const SWIPE_TRIGGER = 58;  // 触发阈值
+const PTR_TRIGGER = 60;    // 下拉刷新触发阈值
+let swipe = null;
+let swipeSuppress = 0;     // 刚滑完时抑制随后的 click，避免误开编辑
+let ptr = { y:0, dy:0, active:false };
+let kbTimer = null;
+
+/* ---- 滑动卡片：左滑删除 / 右滑置顶 ---- */
+function swipeWrap(rec, pinned){
+  if(rec.__slide) return rec.__slide;
+  const slide = document.createElement("div"); slide.className = "rec-slide";
+  while(rec.firstChild) slide.appendChild(rec.firstChild);
+  const lb = document.createElement("div"); lb.className = "rec-bg lb";
+  lb.innerHTML = icon("star",14) + (pinned ? "取消置顶" : "置顶");
+  const rb = document.createElement("div"); rb.className = "rec-bg rb";
+  rb.innerHTML = icon("trash",14) + "删除";
+  rec.appendChild(lb); rec.appendChild(rb); rec.appendChild(slide);
+  rec.__slide = slide; rec.__lb = lb; rec.__rb = rb;
+  rec.classList.add("swiping");
+  return slide;
+}
+function swipeUnwrap(rec){
+  if(!rec || !rec.__slide) return;
+  const slide = rec.__slide;
+  while(slide.firstChild) rec.insertBefore(slide.firstChild, slide);
+  slide.remove();
+  if(rec.__lb) rec.__lb.remove();
+  if(rec.__rb) rec.__rb.remove();
+  rec.__slide = rec.__lb = rec.__rb = null;
+  rec.classList.remove("swiping");
+}
+function swipePaint(rec, d){
+  if(rec.__slide) rec.__slide.style.transform = `translateX(${d}px)`;
+  if(rec.__lb) rec.__lb.style.opacity = d > 0 ? Math.min(1, d / 52) : 0;
+  if(rec.__rb) rec.__rb.style.opacity = d < 0 ? Math.min(1, -d / 52) : 0;
+}
+function onSwipeDown(e){
+  if(batchMode || delegateKey === null) return;
+  if(e.pointerType === "mouse") return;                       // 桌面端保留鼠标原行为
+  if(e.isPrimary === false) return;
+  const rec = e.target && e.target.closest ? e.target.closest(".rec[data-rid]") : null;
+  if(!rec) return;
+  const guard = e.target.closest(".js-drag, .bsel, button, input, textarea, a");
+  if(guard) return;                                           // 拖拽把手 / 勾选框 / 输入控件交给原逻辑
+  swipe = { rec:rec, id:rec.dataset.rid, x:e.clientX, y:e.clientY, dx:0, axis:null, pid:e.pointerId };
+}
+function onSwipeMove(e){
+  if(!swipe || e.pointerId !== swipe.pid) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  if(swipe.axis === null){
+    if(Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    swipe.axis = Math.abs(dx) > Math.abs(dy) * 1.4 ? "x" : "y";
+    if(swipe.axis === "x"){
+      const key = delegateKey;
+      const x = (data[key]||[]).find(i=>i.id == swipe.id);
+      swipeWrap(swipe.rec, !!(x && x.pinned));
+    }
+  }
+  if(swipe.axis !== "x") return;
+  const d = Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, dx));
+  swipe.dx = d;
+  swipePaint(swipe.rec, d);
+}
+function onSwipeUp(e){
+  if(!swipe || e.pointerId !== swipe.pid) return;
+  const sw = swipe; swipe = null;
+  if(sw.axis !== "x"){ return; }
+  swipeSuppress = Date.now();
+  const d = sw.dx;
+  if(Math.abs(d) < SWIPE_TRIGGER){ swipeUnwrap(sw.rec); return; }
+  bump(16);
+  const key = delegateKey;
+  const x = (data[key]||[]).find(i=>i.id == sw.id);
+  if(!x){ swipeUnwrap(sw.rec); return; }
+  if(d < 0){ swipeUnwrap(sw.rec); confirmDelete(key, sw.id); return; }
+  x.pinned = !x.pinned;
+  toast(x.pinned ? "已置顶" : "已取消置顶");
+  persist();
+}
+function onSwipeCancel(){ if(swipe){ swipeUnwrap(swipe.rec); swipe = null; } }
+
+/* ---- 下拉刷新 ---- */
+function ptrEl(){
+  let el = $("#ptr");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "ptr"; el.className = "ptr";
+    el.innerHTML = `<span class="spin"></span><span id="ptrTx">下拉刷新</span>`;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function ptrHide(){
+  const el = $("#ptr");
+  if(el){ el.classList.remove("show", "ready", "busy"); el.style.transform = ""; }
+  ptr = { y:0, dy:0, active:false };
+}
+function onPtrStart(e){
+  if(e.touches.length !== 1 || swipe) return;
+  if(window.scrollY > 0.5) return;
+  if(document.querySelector(".overlay, .scrim.show")) return;   // 弹层 / 抽屉打开时不响应
+  ptr = { y:e.touches[0].clientY, dy:0, active:false };
+}
+function onPtrMove(e){
+  if(!ptr.y || e.touches.length !== 1) return;
+  const dy = e.touches[0].clientY - ptr.y;
+  if(dy <= 4 || window.scrollY > 0.5){ if(ptr.active) ptrHide(); return; }
+  ptr.active = true;
+  ptr.dy = Math.min(96, dy * 0.45);
+  const el = ptrEl();
+  el.classList.add("show");
+  el.style.transform = `translate(-50%, ${Math.round(ptr.dy)}px)`;
+  el.classList.toggle("ready", ptr.dy >= PTR_TRIGGER);
+  const tx = el.querySelector("#ptrTx");
+  if(tx) tx.textContent = ptr.dy >= PTR_TRIGGER ? "松开刷新" : "下拉刷新";
+}
+function onPtrEnd(){
+  if(!ptr.active){ ptr = { y:0, dy:0, active:false }; return; }
+  if(ptr.dy < PTR_TRIGGER){ ptrHide(); return; }
+  const el = ptrEl();
+  el.classList.add("busy");
+  el.style.transform = "translate(-50%, 30px)";
+  const tx = el.querySelector("#ptrTx"); if(tx) tx.textContent = "刷新中…";
+  bump(18);
+  setTimeout(() => { doRefresh(); ptrHide(); }, 420);
+}
+function doRefresh(){
+  purgeOldTrash();
+  ensureRecurring();
+  ensureTodoRollover();
+  if(ensureSnapshot()) store.save();
+  render();
+  const d = new Date();
+  toast(`已刷新 · ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`);
+}
+
+/* ---- 软键盘避让：跟随可视视口，把底部弹层顶上去 ---- */
+function bindKeyboardInset(){
+  const vv = window.visualViewport;
+  if(!vv) return;
+  const apply = () => {
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty("--kb", (kb > 80 ? kb : 0) + "px");
+    const a = document.activeElement;
+    if(kb > 80 && a && a.closest && a.closest(".modal")){
+      clearTimeout(kbTimer);
+      kbTimer = setTimeout(() => { try{ a.scrollIntoView({ block:"center" }); }catch(e){} }, 90);
+    }
+  };
+  vv.addEventListener("resize", apply);
+  vv.addEventListener("scroll", apply);
+  apply();
 }
 
 /* ===================== P3-4 数据安全 ===================== */
@@ -3029,6 +3221,14 @@ $("#nav").querySelectorAll(".n").forEach(n=>n.onclick=()=>{
   else go(t);
 });
 $("#screen").addEventListener("click", onScreenClick);   // P3-3 记录级事件委托（全局只挂一次）
+// P3-5 手势：滑动卡片用指针事件（带方向判定），下拉刷新用触摸事件
+$("#screen").addEventListener("pointerdown", onSwipeDown);
+document.addEventListener("pointermove", onSwipeMove);
+document.addEventListener("pointerup", onSwipeUp);
+document.addEventListener("pointercancel", onSwipeCancel);
+document.addEventListener("touchstart", onPtrStart, { passive:true });
+document.addEventListener("touchmove", onPtrMove, { passive:true });
+document.addEventListener("touchend", onPtrEnd, { passive:true });
 
 /* ---------- avatar upload ---------- */
 $("#brandCam").innerHTML = icon("camera",18);
@@ -3329,6 +3529,7 @@ buildDrawer();
 render();
 initPWA();
 capWarnOnce();
+bindKeyboardInset();
 if(!data.__onboarded) showOnboarding();
 if($("#bootSk")) $("#bootSk").remove();
 </script>
