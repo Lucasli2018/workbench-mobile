@@ -463,6 +463,40 @@
   .recap-line { font-size:13px; color:var(--text); line-height:1.6; margin:8px 0 0; }
   .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
   .copy-btn { margin-top:12px; }
+
+  /* ---------- P2-1 任务增强：子任务 / 拖拽 / 顺延 / 番茄钟 ---------- */
+  .rec .drag { flex:0 0 auto; width:18px; height:22px; padding:0; margin-top:1px; border:none; background:transparent;
+    color:var(--text-tertiary); display:grid; place-items:center; cursor:grab; touch-action:none; }
+  .rec .drag:active { cursor:grabbing; color:var(--accent); }
+  .rec.dragging { opacity:.72; border-color:var(--accent); box-shadow:0 10px 24px color-mix(in srgb, var(--text) 18%, transparent); }
+  .rec .subs { margin-top:9px; display:flex; flex-direction:column; gap:6px; }
+  .rec .sub { display:flex; align-items:flex-start; gap:7px; font-size:13px; cursor:pointer; line-height:1.45; }
+  .rec .sub .sbox { flex:0 0 auto; width:15px; height:15px; border-radius:4px; border:1.5px solid var(--border-input);
+    display:grid; place-items:center; color:#fff; margin-top:1px; }
+  .rec .sub .sbox svg { opacity:0; }
+  .rec .sub.done .sbox { background:var(--module-1); border-color:var(--module-1); }
+  .rec .sub.done .sbox svg { opacity:1; }
+  .rec .sub.done .stx { text-decoration:line-through; color:var(--text-secondary); }
+  .rec .subs-bar { height:4px; border-radius:999px; background:var(--border); overflow:hidden; margin-top:9px; }
+  .rec .subs-bar i { display:block; height:100%; border-radius:999px; background:var(--module-1); }
+  .rec .mini-act { border:1px solid var(--border); background:var(--surface-card); color:var(--text-secondary); cursor:pointer;
+    font-size:11px; font-weight:600; padding:2px 9px; border-radius:999px; display:inline-flex; align-items:center;
+    gap:4px; font-family:var(--font); }
+  .rec .mini-act:hover { border-color:var(--accent); color:var(--accent); }
+  .rec-arch .arch-rec { box-shadow:none; background:var(--surface-nested); }
+  .pomo { position:fixed; left:50%; bottom:calc(var(--nav-h) + 14px); z-index:55; transform:translate(-50%, 170%);
+    display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:999px; max-width:calc(100vw - 28px);
+    background:var(--surface-card); border:1px solid var(--border);
+    box-shadow:0 12px 30px color-mix(in srgb, var(--text) 22%, transparent);
+    transition: transform .28s cubic-bezier(.22,1,.36,1); }
+  .pomo.show { transform:translate(-50%, 0); }
+  .pomo-tx { min-width:0; }
+  .pomo-tx b { display:block; font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+  .pomo-tx span { display:block; font-size:11px; color:var(--text-secondary); max-width:132px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pomo-btn { border:none; width:30px; height:30px; border-radius:50%; background:var(--surface-nested); color:var(--text);
+    display:grid; place-items:center; cursor:pointer; flex:0 0 auto; }
+  .drawer .ditem .dstate { margin-left:auto; font-size:11px; font-weight:600; opacity:.6; }
 </style>
 </head>
 <body data-page-node-id="v0GKetTAPEgC2TwKx8v5H6">
@@ -660,6 +694,11 @@ const ICONS = {
   database:'<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  grip:'<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.4V12l3.2 1.9"/>',
+  play:'<path d="M7.5 4.8 19 12 7.5 19.2z"/>',
+  pause:'<path d="M9.2 5v14"/><path d="M14.8 5v14"/>',
+  archive:'<rect x="3.5" y="4.6" width="17" height="4.2" rx="1.4"/><path d="M5.6 8.8V19h12.8V8.8"/><path d="M10 12.6h4"/>',
 };
 function icon(name, size=22, sw=1.7){
   const path = ICONS[name] || ICONS.grid;
@@ -1157,6 +1196,7 @@ function renderModule(key){
     head=headHero(m, `${it.length}`, `条记录 · 今日 ${todayN} 条`, null);
   }
   if(m.type==="checkin") extra=renderCalendar(m,it);
+  if(m.type==="todo") extra=renderTodoArchive();
   const viewIt = (m.type==="finance") ? filterFinance(it) : it;
   const body = !viewIt.length
     ? `<div class="empty"><span class="e">${icon(m.icon,26)}</span><div>还没有记录，点上方「新建」添加第一条吧</div></div>`
@@ -1226,12 +1266,19 @@ function recHTML(m,x){
   // default layout (原有逻辑)
   if(m.type==="todo"){
     const p=(m.priorities||[]).find(p=>p.key===x.priority);
+    const subs=x.subs||[]; const sDone=subs.filter(s=>s.done).length;
+    const subBadge=subs.length?`<span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${sDone}/${subs.length} 子项</span>`:'';
+    const carried=(+x.carriedDays>0)?`<span class="badge" style="background:var(--surface-nested);color:var(--module-3)">${icon("repeat",11)} 顺延 ${x.carriedDays} 天</span>`:'';
+    const focusBadge=x.focus?`<span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${icon("clock",11)} 专注 ${x.focus} 次</span>`:'';
+    const subsHTML=subs.length?`<div class="subs">${subs.map((sub,i)=>`<div class="sub js-sub ${sub.done?'done':''}" data-id="${x.id}" data-i="${i}"><span class="sbox">${icon("check",10,3)}</span><span class="stx">${esc(sub.t)}</span></div>`).join("")}<div class="subs-bar"><i style="width:${Math.round(sDone/subs.length*100)}%"></i></div></div>`:'';
     return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">
+      <button class="drag js-drag" title="长按拖动排序" aria-label="拖动排序" data-id="${x.id}">${icon("grip",16)}</button>
       <div class="chk js-chk ${x.done?'on':''}" data-id="${x.id}">${chkMark}</div>
       ${thumb}
       <div class="body" data-edit="${x.id}"><div class="rname ${x.done?'done':''}">${esc(x.title)}</div>
-      <div class="rmeta">${p?`<span class="badge" style="background:${p.color};color:${p.text}"><span class="dot"></span>${p.label}</span>`:''}</div>
-      ${x.note?`<div class="rnote">${esc(x.note)}</div>`:''}${customBlock}</div></div></div>`;
+      <div class="rmeta">${p?`<span class="badge" style="background:${p.color};color:${p.text}"><span class="dot"></span>${p.label}</span>`:''}${subBadge}${carried}${focusBadge}
+        <button class="mini-act js-focus" data-id="${x.id}">${icon("play",10)} 专注</button></div>
+      ${x.note?`<div class="rnote">${esc(x.note)}</div>`:''}${subsHTML}${customBlock}</div></div></div>`;
   }
   if(m.type==="checkin"){
     const on=!!(x.log&&x.log[today()]); const st=streak(x.log);
@@ -1346,6 +1393,159 @@ function streak(log){
   return n;
 }
 
+/* ===================== P2-1 番茄钟 ===================== */
+const POMO_MIN = 25;
+let pomo = { key:null, id:null, title:"", total:POMO_MIN*60, left:POMO_MIN*60, running:false, timer:null };
+
+function bump(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+
+function pomoRing(pct){
+  const R=15, C=2*Math.PI*R, p=Math.max(0,Math.min(1,pct));
+  return `<svg viewBox="0 0 34 34" width="34" height="34"><circle cx="17" cy="17" r="${R}" fill="none" stroke="var(--border)" stroke-width="3"/>`
+    + `<circle cx="17" cy="17" r="${R}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" `
+    + `stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-p)).toFixed(1)}" transform="rotate(-90 17 17)"/></svg>`;
+}
+function pomoEl(){
+  let el=$("#pomo"); if(el) return el;
+  el=document.createElement("div"); el.id="pomo"; el.className="pomo";
+  el.innerHTML=`<span id="pomoRing"></span>
+    <div class="pomo-tx"><b id="pomoTime">${POMO_MIN}:00</b><span id="pomoTitle">专注</span></div>
+    <button class="pomo-btn" id="pomoToggle" title="暂停 / 继续" aria-label="暂停或继续"></button>
+    <button class="pomo-btn" id="pomoStop" title="结束专注" aria-label="结束专注">${icon("close",14)}</button>`;
+  document.body.appendChild(el);
+  el.querySelector("#pomoToggle").onclick=()=>{ pomo.running=!pomo.running; if(pomo.running) pomoTick(); paintPomo(); };
+  el.querySelector("#pomoStop").onclick=()=>stopPomo();
+  return el;
+}
+function paintPomo(){
+  const el=$("#pomo"); if(!el) return;
+  const left=Math.max(0,pomo.left);
+  const mm=String(Math.floor(left/60)).padStart(2,"0"), ss=String(left%60).padStart(2,"0");
+  el.querySelector("#pomoTime").textContent=`${mm}:${ss}`;
+  el.querySelector("#pomoTitle").textContent=(pomo.running?"专注中 · ":"已暂停 · ")+(pomo.title||"");
+  el.querySelector("#pomoRing").innerHTML=pomoRing(1-pomo.left/pomo.total);
+  el.querySelector("#pomoToggle").innerHTML=icon(pomo.running?"pause":"play",13);
+}
+function pomoTick(){
+  clearInterval(pomo.timer);
+  pomo.timer=setInterval(()=>{
+    if(!pomo.running) return;
+    pomo.left--;
+    if(pomo.left<=0){ pomoFinish(); return; }
+    paintPomo();
+  },1000);
+}
+function startPomo(key,item){
+  if(pomo.running && pomo.key===key && pomo.id===item.id){ toast("这一项正在专注中"); return; }
+  clearInterval(pomo.timer);
+  pomo={ key:key, id:item.id, title:item.title||"专注", total:POMO_MIN*60, left:POMO_MIN*60, running:true, timer:null };
+  pomoEl().classList.add("show");
+  paintPomo(); pomoTick();
+  toast(`开始专注 ${POMO_MIN} 分钟 · ${esc(item.title||"")}`);
+}
+function pomoFinish(){
+  clearInterval(pomo.timer);
+  const k=pomo.key, id=pomo.id;
+  pomo={ key:null, id:null, title:"", total:POMO_MIN*60, left:POMO_MIN*60, running:false, timer:null };
+  const x=(data[k]||[]).find(i=>i.id==id);
+  if(x) x.focus=(x.focus||0)+1;
+  bump([30,60,30]);
+  const el=$("#pomo"); if(el) el.classList.remove("show");
+  toast(`${icon("clock",14)} 专注完成！已累计 ${x?(x.focus||1):1} 次`);
+  persist();
+}
+function stopPomo(){
+  clearInterval(pomo.timer);
+  pomo={ key:null, id:null, title:"", total:POMO_MIN*60, left:POMO_MIN*60, running:false, timer:null };
+  const el=$("#pomo"); if(el) el.classList.remove("show");
+}
+
+/* ===================== P2-1 拖拽排序 ===================== */
+function wireDrag(key){
+  const screen=$("#screen");
+  const rows=()=>[...screen.querySelectorAll(".rec[data-rid]")].filter(n=>n.querySelector(".js-drag"));
+  screen.querySelectorAll(".js-drag").forEach(h=>{
+    h.addEventListener("pointerdown", ev=>{
+      if(ev.button && ev.button!==0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const el=h.closest("[data-rid]"); if(!el) return;
+      el.classList.add("dragging");
+      try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+      const onMove=e2=>{
+        const list=rows(); if(!list.length) return;
+        const y=e2.clientY;
+        let target=list.findIndex(n=>{ const r=n.getBoundingClientRect(); return y < r.top + r.height*0.55; });
+        if(target<0) target=list.length-1;
+        const cur=list.indexOf(el); if(cur<0 || target<0 || target===cur) return;
+        const ref = target>cur ? list[target].nextElementSibling : list[target];
+        el.parentNode.insertBefore(el, ref);
+      };
+      const onUp=()=>{
+        h.removeEventListener("pointermove",onMove);
+        h.removeEventListener("pointerup",onUp);
+        h.removeEventListener("pointercancel",onUp);
+        el.classList.remove("dragging");
+        const ids=rows().map(n=>n.dataset.rid);
+        const arr=data[key]||[];
+        arr.sort((a,b)=>{
+          const ia=ids.findIndex(v=>v==String(a.id)), ib=ids.findIndex(v=>v==String(b.id));
+          return (ia<0?9999:ia)-(ib<0?9999:ib);
+        });
+        persist();
+        toast("顺序已保存");
+      };
+      h.addEventListener("pointermove",onMove);
+      h.addEventListener("pointerup",onUp);
+      h.addEventListener("pointercancel",onUp);
+    });
+  });
+}
+
+/* ===================== P2-1 每日自动结转 ===================== */
+function ensureTodoRollover(){
+  const t=today();
+  if(data.__todoLastDay===t) return;
+  const prev=data.__todoLastDay;
+  if(data.__todoRollover===false){ data.__todoLastDay=t; store.save(); return; }
+  if(prev && prev<t){
+    const list=data.todo||[];
+    const done=list.filter(x=>x.done);
+    const undone=list.filter(x=>!x.done);
+    if(done.length){
+      data.__todoArchive=data.__todoArchive||{};
+      data.__todoArchive[prev]=(data.__todoArchive[prev]||[]).concat(done.map(x=>({ id:x.id, title:x.title, focus:x.focus||0 })));
+      const keys=Object.keys(data.__todoArchive).sort();
+      while(keys.length>30){ delete data.__todoArchive[keys.shift()]; }
+    }
+    undone.forEach(x=>{ x.carriedDays=(x.carriedDays||0)+1; });
+    data.todo=undone;
+    if(done.length||undone.length){
+      setTimeout(()=>toast(`昨日归档 ${done.length} 项完成记录，${undone.length} 项顺延到今天`), 800);
+    }
+  }
+  data.__todoLastDay=t;
+  store.save();
+}
+
+function renderTodoArchive(){
+  const arch=data.__todoArchive||{};
+  const keys=Object.keys(arch).sort().reverse().slice(0,7);
+  if(!keys.length) return "";
+  const CHEV='<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  const rows=keys.map(dk=>{
+    const arr=arch[dk]||[];
+    const items=arr.map(x=>`<div class="rec arch-rec"><div class="top"><div class="body" style="padding-right:0">`
+      + `<div class="rname done">${esc(x.title)}</div>`
+      + `${x.focus?`<div class="rmeta"><span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">${icon("clock",11)} 专注 ${x.focus} 次</span></div>`:''}`
+      + `</div></div></div>`).join("");
+    return `<div class="grp">
+      <div class="grp-head js-collapse collapsed">${CHEV}<span class="grp-title">${esc(dk)}</span><span class="grp-sum"><span class="gs">完成 ${arr.length} 项</span></span></div>
+      <div class="grp-body">${items}</div>
+    </div>`;
+  }).join("");
+  return `<div class="sec-title">${icon("archive",15)} 已完成归档<span class="more">近 7 天</span></div><div class="rec-arch">${rows}</div>`;
+}
+
 function wireModule(key){
   const m=modOf(key);
   $("#screen").querySelectorAll(".js-chk").forEach(el=>el.onclick=e=>{
@@ -1374,6 +1574,24 @@ function wireModule(key){
     const v=window.prompt("设置每月支出预算（元，0 表示不限制）：", data.__budget||"");
     if(v===null) return; const n=Math.max(0, +v||0); data.__budget=n; persist();
   });
+  // P2-1 子任务勾选
+  $("#screen").querySelectorAll(".js-sub").forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x||!x.subs) return;
+    const sub=x.subs[+el.dataset.i]; if(!sub) return;
+    sub.done=!sub.done;
+    if(x.subs.length && x.subs.every(t=>t.done)) x.done=true;
+    else if(x.subs.some(t=>!t.done)) x.done=false;
+    bump(10); persist();
+  });
+  // P2-1 番茄钟
+  $("#screen").querySelectorAll(".js-focus").forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x) return;
+    startPomo(key,x);
+  });
+  // P2-1 拖拽排序（仅 todo）
+  if(m.type==="todo") wireDrag(key);
 }
 
 /* ---------- EDITOR MODAL (per type) ---------- */
@@ -1384,6 +1602,7 @@ function openEditor(key, item){
   if(m.type==="todo"){
     fields=`<div class="field"><label>任务</label><input id="f-title" value="${attr(d.title)}" placeholder="要做什么？"/></div>
       <div class="field"><label>优先级</label><div class="seg" id="f-prio">${(m.priorities||[]).map(p=>`<div class="opt ${p.key===d.priority?'on':''}" data-v="${p.key}">${p.label}</div>`).join("")}</div></div>
+      <div class="field"><label>子任务（每行一个）</label><textarea id="f-subs" placeholder="拆成小步，一行一个：&#10;查资料&#10;写初稿&#10;校对一遍">${esc((d.subs||[]).map(sub=>sub.t).join("\n"))}</textarea></div>
       <div class="field"><label>备注</label><textarea id="f-note" placeholder="补充说明">${esc(d.note||'')}</textarea></div>`;
   } else if(m.type==="checkin"){
     fields=`<div class="field"><label>打卡项</label><input id="f-title" value="${attr(d.title)}" placeholder="例如：喝够 8 杯水"/></div>
@@ -1447,7 +1666,13 @@ function openEditor(key, item){
     const seg=id=>{ const el=overlay.querySelector(id+" .on"); return el?el.dataset.v:undefined; };
     d.title=(val("#f-title")||"").trim()||"未命名";
     d.layout=seg("#f-layout")||'default';
-    if(m.type==="todo"){ d.priority=seg("#f-prio")||d.priority; d.note=(val("#f-note")||"").trim(); }
+    if(m.type==="todo"){
+      d.priority=seg("#f-prio")||d.priority; d.note=(val("#f-note")||"").trim();
+      const oldSubs=d.subs||[];
+      d.subs=(val("#f-subs")||"").split("\n").map(t=>t.trim()).filter(Boolean)
+        .map(t=>{ const prev=oldSubs.find(o=>o.t===t); return { t:t, done: prev?!!prev.done:false }; });
+      if(d.subs.length && d.subs.every(t=>t.done)) d.done=true;
+    }
     else if(m.type==="progress"){ d.current=Math.max(0,+val("#f-cur")||0); d.target=Math.max(1,+val("#f-tgt")||1); d.unit=(val("#f-unit")||"").trim(); d.note=(val("#f-note")||"").trim(); }
     else if(m.type==="finance"){ d.type=seg("#f-ftype")||"expense"; d.amount=Math.max(0,+val("#f-amt")||0); d.category=seg("#f-cat")||(m.categories&&m.categories[0])||"其他"; d.date=val("#f-date"); d.repeat=(seg("#f-repeat")==="repeat"); }
     else if(m.type==="note"){ d.mood=seg("#f-mood")||d.mood||""; d.content=(val("#f-content")||"").trim(); d.date=val("#f-date"); }
@@ -1467,7 +1692,7 @@ function openEditor(key, item){
 function newItem(m){
   const base={ id: Date.now() };
   let item;
-  if(m.type==="todo") item={...base, title:"", priority:(m.priorities&&m.priorities[1]?m.priorities[1].key:"P1"), done:false, note:""};
+  if(m.type==="todo") item={...base, title:"", priority:(m.priorities&&m.priorities[1]?m.priorities[1].key:"P1"), done:false, note:"", subs:[]};
   else if(m.type==="checkin") item={...base, title:"", log:{}};
   else if(m.type==="progress") item={...base, title:"", current:0, target: (m.unit==="页"?100:20), unit:m.unit||"", note:""};
   else if(m.type==="finance") item={...base, title:"", type:"expense", amount:"", category:(m.categories&&m.categories[0])||"其他", date:isoToday(), repeat:false};
@@ -1560,6 +1785,7 @@ function buildDrawer(){
   $("#drawerTools").innerHTML = [
     `<div class="ditem" data-tool="export">${icon("download",20)}导出数据</div>`,
     `<div class="ditem" data-tool="import">${icon("upload",20)}导入数据</div>`,
+    `<div class="ditem" data-tool="rollover">${icon("repeat",20)}每日自动结转<span class="dstate">${data.__todoRollover===false?"已关闭":"已开启"}</span></div>`,
     `<div class="ditem" data-tool="help">${icon("book",20)}玩法 / 帮助</div>`,
   ].join("");
   $("#drawerTools").querySelectorAll("[data-tool]").forEach(el=>{
@@ -1569,6 +1795,11 @@ function buildDrawer(){
       setTimeout(() => {
         if(t==="export") exportData();
         else if(t==="import") $("#importInput").click();
+        else if(t==="rollover"){
+          const cur=(data.__todoRollover!==false);
+          data.__todoRollover=!cur; store.save(); buildDrawer();
+          toast(data.__todoRollover?"已开启：未完成任务次日自动顺延":"已关闭每日自动结转");
+        }
         else if(t==="help") showOnboarding();
       }, 180);
     };
@@ -1738,6 +1969,7 @@ function showOnboarding(){
 }
 
 ensureRecurring();
+ensureTodoRollover();
 buildDrawer();
 render();
 if(!data.__onboarded) showOnboarding();
