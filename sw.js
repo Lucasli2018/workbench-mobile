@@ -1,7 +1,7 @@
 /* 汪汪时间管理局 · Service Worker
    策略：导航请求网络优先（保证拿到最新 index.html），静态资源缓存优先 + 后台更新。
    注意：Service Worker 只在 https 或 localhost 下生效；用 file:// 直接打开时不受影响。 */
-const CACHE = "workbench-doggy-v3";
+const CACHE = "workbench-doggy-v4";
 const CORE = [
   "./",
   "./index.html",
@@ -35,6 +35,18 @@ async function putSafe(cache, req, res) {
   try { if (res && res.ok && res.type === "basic") await cache.put(req, res.clone()); } catch (err) { /* 忽略配额等异常 */ }
 }
 
+// 页面（导航请求 / index.html / 根路径）：网络优先，离线回落缓存
+async function pageFirst(req) {
+  const c = await caches.open(CACHE);
+  try {
+    const res = await fetch(req);
+    await putSafe(c, "./index.html", res);
+    return res;
+  } catch (err) {
+    return (await c.match("./index.html")) || (await c.match("./")) || Response.error();
+  }
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
@@ -42,18 +54,9 @@ self.addEventListener("fetch", (e) => {
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== self.location.origin) return;
 
-  // 导航请求：网络优先，离线回落缓存
-  if (req.mode === "navigate") {
-    e.respondWith((async () => {
-      const c = await caches.open(CACHE);
-      try {
-        const res = await fetch(req);
-        await putSafe(c, "./index.html", res);
-        return res;
-      } catch (err) {
-        return (await c.match("./index.html")) || (await c.match("./")) || Response.error();
-      }
-    })());
+  // 导航请求，以及任何形态的 index.html / 根路径，都走网络优先
+  if (req.mode === "navigate" || url.pathname.endsWith("/") || url.pathname.endsWith("/index.html")) {
+    e.respondWith(pageFirst(req));
     return;
   }
 
