@@ -15,6 +15,19 @@
 <meta name="apple-mobile-web-app-title" content="汪汪工作台" />
 <link rel="apple-touch-icon" href="workbench-assets/apple-touch-icon.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="workbench-assets/icon-192.png" />
+<script>
+/* P3-2 首屏前应用外观，避免深色模式闪白。存储键与 CONFIG.storageKey 保持一致。 */
+(function () {
+  try {
+    var d = JSON.parse(localStorage.getItem("workbench-doggy-v1") || "{}");
+    var pref = d.__theme || "auto";
+    var dark = pref === "dark" || (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var e = document.documentElement;
+    e.setAttribute("data-theme", dark ? "dark" : "light");
+    e.setAttribute("data-skin", d.__skin || "blue");
+  } catch (err) { /* 读取失败则用默认浅色 */ }
+})();
+</script>
 <style>
   /* ============================================================
      THEME TOKENS — 一处改色，整站换肤（简约·墨色中性默认）
@@ -72,18 +85,84 @@
     --shadow-card: 0 1px 2px rgba(19,33,62,.05), 0 6px 20px rgba(37,99,235,.09);   /* 卡片/面板 */
     --shadow-overlay: 0 12px 32px rgba(19,33,62,.18);                             /* 弹窗/toast/悬浮按钮 */
 
+    /* ---- 底纹与遮罩（P3-2 抽成变量，深色模式整体替换） ---- */
+    --page-grad-a: #eaf2ff;            /* 页面渐变上色 */
+    --page-grad-b: #e4ecff;            /* 页面渐变下色 */
+    --glow: rgba(59,130,246,.18);      /* 顶部光晕 */
+    --grid-line: rgba(59,130,246,.07); /* 科技网格线 */
+    --nav-bg: rgba(255,255,255,.92);   /* 底部导航栏底 */
+    --scrim: rgba(19,33,62,.44);       /* 抽屉 / 弹窗遮罩 */
+
     /* ---- 字体与布局 ---- */
     --font: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     --nav-h: 62px;                   /* 底部导航栏高度 */
   }
+
+  /* ============================================================
+     P3-2 深色模式：<html data-theme="dark"> 时整体替换颜色令牌。
+     JS 会把「跟随系统」解析成 dark / light 后写到 data-theme。
+     ============================================================ */
+  html[data-theme="dark"] {
+    --page-bg: #0a121f;
+    --surface-card: #131e30;
+    --surface-nested: #1a2a42;
+
+    --border: #24344c;
+    --border-input: #35496a;
+
+    --text: #e7eefb;
+    --text-secondary: #9cb0cf;
+    --text-tertiary: #6b7fa3;
+
+    --accent: #4d8dff;
+    --accent-muted: #17294a;
+    --on-accent: #ffffff;
+
+    --module-1: #34d399;
+    --module-2: #60a5fa;
+    --module-3: #fbbf24;
+    --module-4: #f87171;
+    --module-5: #a78bfa;
+
+    --danger: #f87171;
+    --danger-muted: #3a1b21;
+
+    --drawer-bg: #070d18;
+    --drawer-bg-top: #132239;
+    --drawer-text: #e2ecff;
+    --drawer-text-mute: rgba(226,236,255,.5);
+    --drawer-hover: rgba(226,236,255,.08);
+    --drawer-active: rgba(77,141,255,.26);
+
+    --page-grad-a: #0d1728;
+    --page-grad-b: #070d18;
+    --glow: rgba(77,141,255,.16);
+    --grid-line: rgba(120,170,255,.055);
+    --nav-bg: rgba(15,24,39,.92);
+    --scrim: rgba(2,6,14,.66);
+
+    --shadow-card: 0 1px 2px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.35);
+    --shadow-overlay: 0 14px 34px rgba(0,0,0,.55);
+  }
+  /* 深色下把首页插画压得更暗，保证叠字可读 */
+  html[data-theme="dark"] .greet::before {
+    background: linear-gradient(100deg, var(--surface-nested) 38%,
+      color-mix(in srgb, var(--surface-nested) 86%, transparent) 58%,
+      color-mix(in srgb, var(--surface-nested) 44%, transparent) 100%); }
+
+  /* ---- 主题色皮肤（只换 accent，模块色保持 5 色轮转） ---- */
+  html[data-skin="coral"] { --accent: #ea580c; --accent-muted: #ffedd5; }
+  html[data-skin="green"] { --accent: #0f9d75; --accent-muted: #d7f5ec; }
+  html[data-theme="dark"][data-skin="coral"] { --accent: #ff8a4c; --accent-muted: #3a2113; }
+  html[data-theme="dark"][data-skin="green"] { --accent: #34d399; --accent-muted: #10322a; }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :focus-visible { outline: 2px solid var(--module-2); outline-offset: 2px; border-radius: 4px; }
   button { -webkit-focus-ring-color: var(--module-2); }
   html, body { height: 100%; }
   body {
     background:
-      radial-gradient(120% 60% at 50% -10%, rgba(59,130,246,.18), transparent 60%),
-      linear-gradient(180deg, #eaf2ff 0%, var(--page-bg) 40%, #e4ecff 100%),
+      radial-gradient(120% 60% at 50% -10%, var(--glow), transparent 60%),
+      linear-gradient(180deg, var(--page-grad-a) 0%, var(--page-bg) 40%, var(--page-grad-b) 100%),
       var(--page-bg);
     color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -92,8 +171,8 @@
   }
   body::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
     background-image:
-      linear-gradient(rgba(59,130,246,.07) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(59,130,246,.07) 1px, transparent 1px),
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
       var(--page-texture);
     background-size: 28px 28px, 28px 28px, cover;
     background-position: center, center, center;
@@ -274,13 +353,13 @@
 
   /* ---------- bottom nav ---------- */
   .nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 480px; height: var(--nav-h);
-    background: rgba(255,255,255,.92); backdrop-filter: blur(14px); border-top: 1px solid var(--border);
+    background: var(--nav-bg); backdrop-filter: blur(14px); border-top: 1px solid var(--border);
     display: grid; grid-template-columns: repeat(3,1fr); align-items: center; z-index: 30; padding-bottom: env(safe-area-inset-bottom); }
   .nav .n { display:flex; flex-direction:column; align-items:center; gap: 4px; cursor:pointer; color: var(--text-tertiary); font-size: 10px; font-weight: 500; }
   .nav .n.active { color: var(--accent); font-weight: 700; }
 
   /* ---------- drawer ---------- */
-  .scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--text) 42%, transparent); backdrop-filter: blur(2px); z-index: 40; opacity:0; pointer-events:none; transition: opacity .22s; }
+  .scrim { position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(2px); z-index: 40; opacity:0; pointer-events:none; transition: opacity .22s; }
   .scrim.show { opacity:1; pointer-events:auto; }
   .drawer { position: fixed; top:0; bottom:0; left:0; width: 296px; max-width: 82vw; z-index: 50; transform: translateX(-104%);
     transition: transform .26s cubic-bezier(.2,.8,.25,1); overflow-y:auto;
@@ -305,7 +384,7 @@
   .drawer .dfoot { font-size: 11px; opacity:.45; padding: 20px 22px 28px; }
 
   /* ---------- modal ---------- */
-  .overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--text) 44%, transparent); backdrop-filter: blur(3px); z-index: 60;
+  .overlay { position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(3px); z-index: 60;
     display:flex; align-items:flex-end; justify-content:center; animation: fade .16s ease; }
   @keyframes fade { from { opacity:0; } }
   .modal { background: var(--surface-card); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
@@ -473,6 +552,14 @@
   .recap-line { font-size:13px; color:var(--text); line-height:1.6; margin:8px 0 0; }
   .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
   .copy-btn { margin-top:12px; }
+
+  /* ---- P3-2 主题面板 ---- */
+  .th-prev { margin-top: 2px; padding: 12px; border-radius: var(--radius-tile);
+    background: var(--surface-nested); border: 1px solid var(--border); }
+  .th-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .th-row + .th-row { margin-top: 10px; }
+  .th-chip { font-size: 11.5px; font-weight: 700; padding: 5px 11px; border-radius: 999px; }
+  .th-dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; }
 
   /* ---- P3-1 PWA 添加到主屏提示条 ---- */
   .a2hs { position:fixed; left:50%; bottom:calc(var(--nav-h) + 12px); transform:translate(-50%, 190%); z-index:58;
@@ -907,7 +994,7 @@ function renderHome(){
   const trend = hasTrend ? trendSVG(series)
     : `<div class="trend-empty">${icon("chart",22)}<span>暂无本周数据</span></div>`;
 
-  const quick = CONFIG.quickAdd.map(q=>`<button class="qbtn" data-quick="${q.module}"><span class="e" style="background:${q.tint};color:${q.color}">${icon(q.icon,20)}<i class="qplus">${icon("plus",10,3)}</i></span><span class="l">${q.label}</span></button>`).join("");
+  const quick = CONFIG.quickAdd.map(q=>`<button class="qbtn" data-quick="${q.module}"><span class="e" style="background:color-mix(in srgb, ${q.color} 16%, transparent);color:${q.color}">${icon(q.icon,20)}<i class="qplus">${icon("plus",10,3)}</i></span><span class="l">${q.label}</span></button>`).join("");
 
   $("#screen").innerHTML = `
     <div class="greet"><div><h1>${hi}</h1><p>欢迎回到${CONFIG.owner}</p></div></div>
@@ -936,7 +1023,7 @@ function trendSVG(series){
   });
   const line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
   const area=line+` L ${padX+innerW} ${h-padBot} L ${padX} ${h-padBot} Z`;
-  const dots=pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="#fff" stroke="var(--module-2)" stroke-width="2"/>`).join('');
+  const dots=pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--surface-card)" stroke="var(--module-2)" stroke-width="2"/>`).join('');
   return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
     <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--module-2)" stop-opacity=".22"/><stop offset="1" stop-color="var(--module-2)" stop-opacity="0"/></linearGradient></defs>
     <path d="${area}" fill="url(#tg)"/><path d="${line}" fill="none" stroke="var(--module-2)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>${dots}</svg>`;
@@ -1383,7 +1470,7 @@ function renderFinanceFilter(){
 
 /* per-module hero header: compact strip — icon + big number + label + optional progress bar */
 function headHero(m, big, label, pct){
-  const inner=`<div class="hero-ic" style="background:${m.tint};color:${m.color}">${icon(m.icon,20)}</div>
+  const inner=`<div class="hero-ic" style="background:color-mix(in srgb, ${m.color} 16%, transparent);color:${m.color}">${icon(m.icon,20)}</div>
     <div style="flex:1;min-width:0"><div class="hero-tx"><span class="hero-v">${big}</span><span class="hero-l">${label}</span></div>
     ${pct!=null?`<div class="hero-bar"><i style="width:${Math.min(100,pct)}%;background:${m.color}"></i></div>`:''}</div>`;
   if(m.cover) return `<div class="hero has-cover"><div class="hero-bg" style="background-image:url('${attr(m.cover)}')"></div><div class="hero-inner">${inner}</div></div>`;
@@ -2472,6 +2559,7 @@ function buildDrawer(){
     `<div class="ditem" data-tool="export">${icon("download",20)}导出数据</div>`,
     `<div class="ditem" data-tool="import">${icon("upload",20)}导入数据</div>`,
     `<div class="ditem" data-tool="rollover">${icon("repeat",20)}每日自动结转<span class="dstate">${data.__todoRollover===false?"已关闭":"已开启"}</span></div>`,
+    `<div class="ditem" data-tool="theme">${icon("moon",20)}主题与外观<span class="dstate">${THEME_LABEL[themePref()]} · ${SKIN_LABEL[skinPref()]}</span></div>`,
     `<div class="ditem" data-tool="trash">${icon("trash",20)}回收站<span class="dstate">${(Array.isArray(data.__trash)?data.__trash.length:0) || ""}</span></div>`,
     `<div class="ditem" data-tool="help">${icon("book",20)}玩法 / 帮助</div>`,
   ].join("");
@@ -2488,6 +2576,7 @@ function buildDrawer(){
           toast(data.__todoRollover?"已开启：未完成任务次日自动顺延":"已关闭每日自动结转");
         }
         else if(t==="trash") openTrash();
+        else if(t==="theme") openThemePanel();
         else if(t==="help") showOnboarding();
       }, 180);
     };
@@ -2620,6 +2709,69 @@ $("#importInput").onchange = async e => {
   setTimeout(() => location.reload(), 800);
 };
 
+/* ===================== P3-2 主题与皮肤 ===================== */
+const THEME_LABEL = { auto:"跟随系统", light:"浅色", dark:"深色" };
+const SKIN_LABEL = { blue:"科技蓝", coral:"珊瑚橙", green:"翠绿" };
+function themePref(){ return data.__theme || "auto"; }
+function skinPref(){ return data.__skin || "blue"; }
+function prefersDark(){ try{ return window.matchMedia("(prefers-color-scheme: dark)").matches; }catch(e){ return false; } }
+function resolvedTheme(){ const p=themePref(); return p==="auto" ? (prefersDark() ? "dark" : "light") : p; }
+function applyTheme(){
+  const rt = resolvedTheme();
+  const e = document.documentElement;
+  e.setAttribute("data-theme", rt);
+  e.setAttribute("data-skin", skinPref());
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta){
+    const bar = rt==="dark" ? "#0a121f"
+      : (skinPref()==="coral" ? "#9a3412" : skinPref()==="green" ? "#065f46" : "#1e3a5f");
+    meta.setAttribute("content", bar);
+  }
+}
+function setTheme(v){ data.__theme = v; store.save(); applyTheme(); buildDrawer(); }
+function setSkin(v){ data.__skin = v; store.save(); applyTheme(); buildDrawer(); }
+function bindThemeMedia(){
+  try{
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const h = () => { if(themePref()==="auto") applyTheme(); };
+    if(mq.addEventListener) mq.addEventListener("change", h);
+    else if(mq.addListener) mq.addListener(h);
+  }catch(e){}
+}
+function openThemePanel(){
+  const themes=[["auto","跟随系统"],["light","浅色"],["dark","深色"]];
+  const skins=[["blue","科技蓝"],["coral","珊瑚橙"],["green","翠绿"]];
+  const overlay=document.createElement("div"); overlay.className="overlay";
+  overlay.innerHTML=`<div class="modal"><div class="grab"></div><h2>主题与外观</h2>
+    <div class="sub">外观与主题色只影响显示，不会动到你的数据。</div>
+    <div class="field"><label>外观</label><div class="seg" id="thTheme">${themes.map(([k,l])=>`<div class="opt ${themePref()===k?'on':''}" data-v="${k}">${l}</div>`).join("")}</div></div>
+    <div class="field"><label>主题色</label><div class="seg" id="thSkin">${skins.map(([k,l])=>`<div class="opt ${skinPref()===k?'on':''}" data-v="${k}">${l}</div>`).join("")}</div></div>
+    <div class="field"><label>预览</label><div class="th-prev" id="thPrev"></div></div>
+    <div class="modal-actions"><button class="btn" id="thDone">完成</button></div></div>`;
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  const paintPrev=()=>{
+    const box=overlay.querySelector("#thPrev"); if(!box) return;
+    box.innerHTML=`<div class="th-row">
+        <span class="th-chip" style="background:var(--accent);color:var(--on-accent)">主色</span>
+        <span class="th-chip" style="background:var(--accent-muted);color:var(--accent)">浅底</span>
+        <span class="th-chip" style="background:var(--surface-nested);color:var(--text)">次级面</span>
+        <span class="th-chip" style="background:var(--surface-card);color:var(--text);border:1px solid var(--border)">卡片</span></div>
+      <div class="th-row">${["--module-1","--module-2","--module-3","--module-4","--module-5"].map(v=>`<span class="th-dot" style="background:var(${v})"></span>`).join("")}</div>`;
+  };
+  overlay.querySelectorAll("#thTheme .opt").forEach(o=>o.onclick=()=>{
+    overlay.querySelectorAll("#thTheme .opt").forEach(x=>x.classList.remove("on")); o.classList.add("on");
+    setTheme(o.dataset.v); paintPrev();
+  });
+  overlay.querySelectorAll("#thSkin .opt").forEach(o=>o.onclick=()=>{
+    overlay.querySelectorAll("#thSkin .opt").forEach(x=>x.classList.remove("on")); o.classList.add("on");
+    setSkin(o.dataset.v); paintPrev();
+  });
+  overlay.onclick=e=>{ if(e.target===overlay) close(); };
+  overlay.querySelector("#thDone").onclick=close;
+  paintPrev();
+}
+
 /* ===================== P3-1 PWA ===================== */
 let a2hsEvent = null;
 function isStandalone(){
@@ -2710,6 +2862,8 @@ function showOnboarding(){
   overlay.querySelector("#ob-ok").onclick=()=>{ data.__onboarded=true; store.save(); overlay.remove(); };
 }
 
+applyTheme();
+bindThemeMedia();
 purgeOldTrash();
 ensureRecurring();
 ensureTodoRollover();
