@@ -464,6 +464,14 @@
   .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
   .copy-btn { margin-top:12px; }
 
+  /* ---- P2-3 进度增强 ---- */
+  .wk-row { margin-top: 12px; }
+  .wk-row:first-of-type { margin-top: 6px; }
+  .wk-top { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .wk-top .rank-name { font-size:12.5px; font-weight:600; color:var(--text); }
+  .wk-top .rank-val { margin-left:auto; font-size:12px; color:var(--text-secondary); white-space:nowrap; }
+  .wk-x { display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-tertiary); margin-top:2px; }
+
   /* ---- P2-2 打卡增强 ---- */
   .cal-panel .cal-foot + .cal-foot { margin-top: 6px; }
   .rec .sub-goal { font-size:12px; color:var(--text-secondary); font-weight:600; }
@@ -631,8 +639,8 @@ const CONFIG = {
       key: "sport", name: "运动打卡", icon: "activity", tint: "#fef3c7", color: "var(--module-3)",
       type: "progress", unit: "分钟", desc: "活力运动舱 · 跑步·力量·拉伸",
       seed: [
-        { id: 41, title: "力量训练", current: 12, target: 20, unit: "分钟", note: "20 分钟核心" },
-        { id: 42, title: "跑步", current: 30, target: 40, unit: "分钟", note: "" },
+        { id: 41, title: "力量训练", current: 12, target: 20, unit: "分钟", note: "20 分钟核心", period: "total" },
+        { id: 42, title: "每周跑步", current: 30, target: 120, unit: "分钟", note: "每周累计 120 分钟", period: "week", log: {} },
       ],
     },
     {
@@ -950,8 +958,14 @@ function wireHome(){
     persist();
   });
   // 置顶卡：就地改数字
-  $("#screen").querySelectorAll(".js-pin-inc").forEach(el=>el.onclick=e=>{ e.stopPropagation(); const x=find(el); if(!x) return; x.current=(+x.current||0)+1; persist(); });
-  $("#screen").querySelectorAll(".js-pin-dec").forEach(el=>el.onclick=e=>{ e.stopPropagation(); const x=find(el); if(!x) return; x.current=Math.max(0,(+x.current||0)-1); persist(); });
+  $("#screen").querySelectorAll(".js-pin-inc").forEach(el=>el.onclick=e=>{
+    e.stopPropagation(); const m=modOf(el.dataset.mkey), x=find(el); if(!x) return;
+    bumpProgress(el.dataset.mkey, x, progStep(x,m));
+  });
+  $("#screen").querySelectorAll(".js-pin-dec").forEach(el=>el.onclick=e=>{
+    e.stopPropagation(); const m=modOf(el.dataset.mkey), x=find(el); if(!x) return;
+    bumpProgress(el.dataset.mkey, x, -Math.min(progStep(x,m), +x.current||0));
+  });
   // 置顶卡：点标题区查看详情 / 改状态
   $("#screen").querySelectorAll(".js-pin-open").forEach(el=>el.onclick=()=>openEditor(el.dataset.mkey, find(el)));
 }
@@ -1122,6 +1136,20 @@ function insightProgressWall(){
   let html=`<div class="sec-title">进度墙</div>`;
   if(read.length) html+=`<div class="panel"><div class="ph">${icon("book",15)} 阅读进度<span class="avg">累计 ${readDone}/${readTarget} 页</span></div>${readList}</div>`;
   if(sport.length) html+=`<div class="panel" style="margin-top:12px"><div class="ph">${icon("activity",15)} 运动累计<span class="avg">${sportDone} ${sport[0].unit||'分钟'}</span></div><div class="mini-stats">${sportStats}</div></div>`;
+  // P2-3 近 12 周趋势（仅对开启每周记录的项目）
+  const weekly=[...read,...sport].filter(x=>x.period==="week" || (x.log && Object.keys(x.log).length));
+  if(weekly.length){
+    const rows=weekly.map(x=>{
+      const unit=x.unit||"";
+      const tgt=Math.max(1,+x.target||1), cur=weekSum(x.log);
+      const pct=Math.min(100,Math.round(cur/tgt*100));
+      return `<div class="wk-row"><div class="wk-top"><span class="rank-name">${esc(x.title)}</span>
+        <span class="rank-val">本周 ${cur}/${tgt}${unit} · ${pct}%</span></div>
+        ${sparkSVG(weekSeries(x.log,12))}
+        <div class="wk-x"><span>12 周前</span><span>本周</span></div></div>`;
+    }).join("");
+    html+=`<div class="panel" style="margin-top:12px"><div class="ph">${icon("chart",15)} 近 12 周趋势<span class="avg">每周完成量</span></div>${rows}</div>`;
+  }
   return html;
 }
 function insightRecap(){
@@ -1307,10 +1335,21 @@ function recHTML(m,x){
         ${(on&&goal<=1)?'<span class="badge" style="background:var(--accent-muted);color:var(--accent)">今日已打卡</span>':''}${minus}</div>${customBlock}</div></div></div>`;
   }
   if(m.type==="progress"){
-    const pct=Math.min(100,Math.round((x.current/x.target)*100||0));
+    const isWeek=x.period==="week";
+    const unit=x.unit||m.unit||"";
+    const cur = isWeek ? weekSum(x.log) : (+x.current||0);
+    const tgt = Math.max(1,+x.target||1);
+    const pct = Math.min(100,Math.round(cur/tgt*100));
+    const step=progStep(x,m);
+    const back=Math.min(step,cur);
+    const isPinnedDone=pct>=100;
     return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
       <div class="rname">${esc(x.title)}</div>
-      <div class="rmeta"><span style="color:var(--text-secondary);font-size:13px">${x.current}/${x.target} ${x.unit||m.unit||''} · ${pct}%</span></div>
+      <div class="rmeta"><span style="color:var(--text-secondary);font-size:13px">${isWeek?"本周 ":""}${cur}/${tgt} ${unit} · ${pct}%</span>
+        ${isWeek?`<span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">累计 ${(+x.current||0)} ${unit}</span>`:''}
+        ${isPinnedDone?'<span class="badge" style="background:var(--accent-muted);color:var(--accent)">已达成</span>':''}
+        <button class="mini-act js-prog" data-id="${x.id}" data-n="${step}" title="加 ${step} ${unit}">+${step}</button>
+        ${back>0?`<button class="mini-act js-prog" data-id="${x.id}" data-n="${-back}" title="减 ${back} ${unit}">-${back}</button>`:''}</div>
       <div class="pbar"><i style="width:${pct}%;background:${m.color}"></i></div>
       ${x.note?`<div class="rnote">${esc(x.note)}</div>`:''}${customBlock}</div></div></div>`;
   }
@@ -1409,6 +1448,51 @@ function streak(log){
   if(!log) return 0; let n=0; const d=new Date();
   for(;;){ const key=d.toISOString().slice(0,10); if(log[key]){ n++; d.setDate(d.getDate()-1); } else break; }
   return n;
+}
+
+/* P2-3 进度：周起点（周一）与本地日期键 */
+function weekStart(d){ const x=new Date(d); const dow=(x.getDay()+6)%7; x.setDate(x.getDate()-dow); x.setHours(0,0,0,0); return x; }
+function dsKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function weekSum(log){
+  if(!log) return 0;
+  const s0=weekStart(new Date()); let t=0;
+  for(let i=0;i<7;i++){ const d=new Date(s0); d.setDate(s0.getDate()+i); t+= (+log[dsKey(d)]||0); }
+  return t;
+}
+function weekSeries(log,n){
+  const out=[], s0=weekStart(new Date());
+  for(let w=n-1;w>=0;w--){
+    const s=new Date(s0); s.setDate(s0.getDate()-7*w); let t=0;
+    for(let i=0;i<7;i++){ const d=new Date(s); d.setDate(s.getDate()+i); t+= (+log[dsKey(d)]||0); }
+    out.push(t);
+  }
+  return out;
+}
+function progStep(x,m){
+  const u=x.unit||m.unit||"";
+  if(u==="页") return 10;
+  if(String(u).indexOf("分钟")>=0) return 20;
+  return Math.max(1,+x.step||10);
+}
+/* P2-3 进度增减：同步维护累计值与本周日志，跨 25/50/75/100% 给一次鼓励 */
+const PROG_MILESTONES=[25,50,75,100];
+function progPct(x){
+  const cur = (x.period==="week") ? weekSum(x.log) : (+x.current||0);
+  return Math.min(100, Math.round(cur/Math.max(1,+x.target||1)*100));
+}
+function bumpProgress(key, x, delta){
+  const before=progPct(x);
+  x.current=Math.max(0,(+x.current||0)+delta);
+  if(x.period==="week"){
+    x.log=x.log||{}; const k=dsKey(new Date());
+    const nv=Math.max(0,(+x.log[k]||0)+delta);
+    if(nv<=0) delete x.log[k]; else x.log[k]=nv;
+  }
+  const after=progPct(x);
+  const hit=PROG_MILESTONES.find(v=>before<v && after>=v && before<100);
+  if(hit){ x.milestone=hit; bump([20,40,20]); toast(`${icon("target",14)} 进度 ${hit}% · ${esc(x.title||"")}`); }
+  else if(delta>0) bump(8);
+  persist();
 }
 
 /* P2-2 近 n 日完成天数 */
@@ -1631,6 +1715,12 @@ function wireModule(key){
     else if(x.subs.some(t=>!t.done)) x.done=false;
     bump(10); persist();
   });
+  // P2-3 进度快捷 +N / -N
+  $("#screen").querySelectorAll(".js-prog").forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x) return;
+    bumpProgress(key, x, +el.dataset.n||0);
+  });
   // P2-2 打卡减一
   $("#screen").querySelectorAll(".js-ckminus").forEach(el=>el.onclick=e=>{
     e.stopPropagation();
@@ -1670,6 +1760,10 @@ function openEditor(key, item){
       <div class="frow"><div class="field"><label>当前</label><input id="f-cur" type="number" value="${d.current??0}"/></div>
       <div class="field"><label>目标</label><input id="f-tgt" type="number" value="${d.target??1}"/></div>
       <div class="field"><label>单位</label><input id="f-unit" value="${attr(d.unit||m.unit||'')}"/></div></div>
+      <div class="field"><label>目标周期</label><div class="seg" id="f-period">
+        <div class="opt ${d.period!=='week'?'on':''}" data-v="total">累计目标</div>
+        <div class="opt ${d.period==='week'?'on':''}" data-v="week">每周目标</div></div>
+        <p class="sub" style="margin:8px 0 0">每周目标会按周一到周日累计本周完成量，并在洞察里出近 12 周趋势。</p></div>
       <div class="field"><label>摘录 / 想法</label><textarea id="f-note" placeholder="随手记">${esc(d.note||'')}</textarea></div>`;
   } else if(m.type==="finance"){
     fields=`<div class="field"><label>类型</label><div class="seg" id="f-ftype">
@@ -1732,7 +1826,8 @@ function openEditor(key, item){
         .map(t=>{ const prev=oldSubs.find(o=>o.t===t); return { t:t, done: prev?!!prev.done:false }; });
       if(d.subs.length && d.subs.every(t=>t.done)) d.done=true;
     }
-    else if(m.type==="progress"){ d.current=Math.max(0,+val("#f-cur")||0); d.target=Math.max(1,+val("#f-tgt")||1); d.unit=(val("#f-unit")||"").trim(); d.note=(val("#f-note")||"").trim(); }
+    else if(m.type==="progress"){ d.current=Math.max(0,+val("#f-cur")||0); d.target=Math.max(1,+val("#f-tgt")||1);
+      d.unit=(val("#f-unit")||"").trim(); d.note=(val("#f-note")||"").trim(); d.period=seg("#f-period")||"total"; }
     else if(m.type==="finance"){ d.type=seg("#f-ftype")||"expense"; d.amount=Math.max(0,+val("#f-amt")||0); d.category=seg("#f-cat")||(m.categories&&m.categories[0])||"其他"; d.date=val("#f-date"); d.repeat=(seg("#f-repeat")==="repeat"); }
     else if(m.type==="note"){ d.mood=seg("#f-mood")||d.mood||""; d.content=(val("#f-content")||"").trim(); d.date=val("#f-date"); }
     // save custom fields
@@ -1753,7 +1848,7 @@ function newItem(m){
   let item;
   if(m.type==="todo") item={...base, title:"", priority:(m.priorities&&m.priorities[1]?m.priorities[1].key:"P1"), done:false, note:"", subs:[]};
   else if(m.type==="checkin") item={...base, title:"", log:{}, goal:1, unit:"次"};
-  else if(m.type==="progress") item={...base, title:"", current:0, target: (m.unit==="页"?100:20), unit:m.unit||"", note:""};
+  else if(m.type==="progress") item={...base, title:"", current:0, target: (m.unit==="页"?100:20), unit:m.unit||"", note:"", period:"total", log:{}};
   else if(m.type==="finance") item={...base, title:"", type:"expense", amount:"", category:(m.categories&&m.categories[0])||"其他", date:isoToday(), repeat:false};
   else item={...base, title:"", content:"", mood:(m.moods&&m.moods[0])||"", date:isoToday()};
   // initialize custom fields
