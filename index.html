@@ -5,6 +5,16 @@
 <meta charset="UTF-8" data-page-node-id="Dh0ESd2hhlPt31DVcZKIET" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" data-page-node-id="e6P9co9urmLBXZbQS82mdd" />
 <title>汪汪时间管理局</title>
+<!-- P3-1 PWA：可安装 / 离线可用 -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#1e3a5f" />
+<meta name="description" content="一只卡通小狗 × 未来时间管理局的每日个人工作台" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="汪汪工作台" />
+<link rel="apple-touch-icon" href="workbench-assets/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="workbench-assets/icon-192.png" />
 <style>
   /* ============================================================
      THEME TOKENS — 一处改色，整站换肤（简约·墨色中性默认）
@@ -463,6 +473,19 @@
   .recap-line { font-size:13px; color:var(--text); line-height:1.6; margin:8px 0 0; }
   .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
   .copy-btn { margin-top:12px; }
+
+  /* ---- P3-1 PWA 添加到主屏提示条 ---- */
+  .a2hs { position:fixed; left:50%; bottom:calc(var(--nav-h) + 12px); transform:translate(-50%, 190%); z-index:58;
+    display:flex; align-items:center; gap:9px; padding:10px 12px; border-radius:22px; max-width:calc(100vw - 24px);
+    background:var(--surface-card); border:1px solid var(--border);
+    box-shadow:0 12px 30px color-mix(in srgb, var(--text) 22%, transparent);
+    transition: transform .32s cubic-bezier(.22,1,.36,1); }
+  .a2hs.show { transform:translate(-50%, 0); }
+  .a2hs-tx { font-size:12.5px; color:var(--text-secondary); line-height:1.35; }
+  .a2hs-go { flex:0 0 auto; border:none; background:var(--accent); color:var(--on-accent); font-size:12.5px;
+    font-weight:700; padding:7px 13px; border-radius:999px; cursor:pointer; font-family:var(--font); }
+  .a2hs-x { flex:0 0 auto; border:none; background:transparent; color:var(--text-tertiary); cursor:pointer;
+    display:grid; place-items:center; padding:2px; }
 
   /* ---- P2-6 回收站 / 批量 ---- */
   .greet .add-batch { position:absolute; top:16px; right:104px; z-index:2; cursor:pointer; display:grid; place-items:center;
@@ -2597,6 +2620,60 @@ $("#importInput").onchange = async e => {
   setTimeout(() => location.reload(), 800);
 };
 
+/* ===================== P3-1 PWA ===================== */
+let a2hsEvent = null;
+function isStandalone(){
+  try{
+    return window.matchMedia("(display-mode: standalone)").matches
+        || window.matchMedia("(display-mode: minimal-ui)").matches
+        || navigator.standalone === true;
+  }catch(e){ return false; }
+}
+function hideA2HS(remember){
+  const bar = $("#a2hs");
+  if(bar){ bar.classList.remove("show"); setTimeout(()=>{ if(bar.parentNode) bar.remove(); }, 340); }
+  if(remember){ data.__a2hsHidden = true; store.save(); }
+}
+function showA2HS(){
+  if(data.__a2hsHidden || isStandalone() || $("#a2hs")) return;
+  const ua = navigator.userAgent || "";
+  const ios = /iPad|iPhone|iPod/.test(ua);
+  const msg = a2hsEvent
+    ? "把汪汪工作台装到桌面，离线也能用"
+    : (ios ? "点底部「分享」→「添加到主屏幕」，就能离线打开"
+           : "手机浏览器里选「添加到主屏幕」，可离线使用");
+  const bar = document.createElement("div");
+  bar.id = "a2hs"; bar.className = "a2hs"; bar.setAttribute("role","dialog");
+  bar.innerHTML = `<span class="a2hs-tx">${msg}</span>`
+    + (a2hsEvent ? `<button class="a2hs-go" id="a2hsGo">安装</button>` : "")
+    + `<button class="a2hs-x" id="a2hsX" aria-label="不再提示">${icon("close",14)}</button>`;
+  document.body.appendChild(bar);
+  requestAnimationFrame(()=>bar.classList.add("show"));
+  const go = $("#a2hsGo");
+  if(go) go.onclick = async () => {
+    if(!a2hsEvent) return;
+    const ev = a2hsEvent; a2hsEvent = null;
+    try{ ev.prompt(); await ev.userChoice; }catch(e){}
+    hideA2HS(true);
+  };
+  const x = $("#a2hsX"); if(x) x.onclick = () => hideA2HS(true);
+}
+function initPWA(){
+  if("serviceWorker" in navigator && location.protocol !== "file:"){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(()=>{});
+    });
+  }
+  window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    a2hsEvent = e;
+    hideA2HS(false);
+    setTimeout(showA2HS, 400);
+  });
+  window.addEventListener("appinstalled", () => { a2hsEvent = null; hideA2HS(true); });
+  if(location.protocol !== "file:") setTimeout(showA2HS, 4200);
+}
+
 /* ---------- utils ---------- */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function attr(s){ return esc(s).replace(/"/g,'&quot;'); }
@@ -2638,6 +2715,7 @@ ensureRecurring();
 ensureTodoRollover();
 buildDrawer();
 render();
+initPWA();
 if(!data.__onboarded) showOnboarding();
 </script>
 </body>

@@ -1,0 +1,21 @@
+{
+  "name": "汪汪时间管理局",
+  "short_name": "汪汪工作台",
+  "description": "一只卡通小狗 × 未来时间管理局的每日个人工作台：任务、打卡、阅读、运动、记账、灵感一站汇总。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "workbench-doggy",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#e7efff",
+  "theme_color": "#1e3a5f",
+  "categories": ["productivity", "lifestyle"],
+  "icons": [
+    { "src": "workbench-assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "workbench-assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "workbench-assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
