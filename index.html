@@ -464,6 +464,30 @@
   .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
   .copy-btn { margin-top:12px; }
 
+  /* ---- P2-6 回收站 / 批量 ---- */
+  .greet .add-batch { position:absolute; top:16px; right:104px; z-index:2; cursor:pointer; display:grid; place-items:center;
+    width:36px; height:36px; border-radius:999px; background:var(--surface-card); color:var(--text-secondary);
+    border:1px solid var(--border); box-shadow:var(--shadow-card); transition:transform .12s; }
+  .greet .add-batch:active { transform:scale(.94); }
+  .greet .add-batch.on { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+  .rec .bsel { display:none; position:absolute; left:12px; top:14px; width:19px; height:19px; border-radius:5px;
+    border:1.6px solid var(--border-input); background:var(--surface-card); place-items:center; color:#fff; cursor:pointer; }
+  .rec .bsel svg { opacity:0; }
+  #screen.batch .rec .bsel { display:grid; }
+  #screen.batch .rec.sel .bsel { background:var(--accent); border-color:var(--accent); }
+  #screen.batch .rec.sel .bsel svg { opacity:1; }
+  #screen.batch .rec.sel { border-color:var(--accent); }
+  #screen.batch .rec:not(.rec-layout-feature):not(.rec-layout-quote) { padding-left:40px; }
+  #screen.batch .rec .acts,
+  #screen.batch .rec .drag,
+  #screen.batch .rec .chk,
+  #screen.batch .rec .mini-act { display:none; }
+  .batchbar { position:fixed; left:50%; bottom:calc(var(--nav-h) + 12px); transform:translateX(-50%); z-index:56;
+    display:flex; align-items:center; gap:7px; padding:8px 11px; border-radius:999px; max-width:calc(100vw - 24px);
+    background:var(--surface-card); border:1px solid var(--border);
+    box-shadow:0 12px 30px color-mix(in srgb, var(--text) 22%, transparent); }
+  .batchbar .bb-n { font-size:12.5px; font-weight:700; color:var(--text); white-space:nowrap; padding-right:2px; }
+
   /* ---- P2-5 笔记增强 ---- */
   .rec .tag-line { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .rec .tag { font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-muted);
@@ -787,6 +811,8 @@ let view = "home";
 let searchQuery = "";
 let insightPeriod = "6m";            // 洞察页时间范围：1m/3m/6m/12m/all
 let noteTag = "all";                 // P2-5 笔记标签筛选
+let batchMode = false;               // P2-6 批量选择模式
+const batchSel = new Set();          // P2-6 已选记录 id
   let financeFilter = { type:"all", cat:"all" };            // home | insight | <moduleKey>
 function persist(){ store.save(); render(); }
 
@@ -961,14 +987,18 @@ function wireCalendar(key, it){
   });
 }
 let calToastTimer=null;
-function showCalUndo(item, ds){
+/* P2-6 通用「撤销」提示（复用于删除 / 取消打卡） */
+function undoToast(msg, fn, ms){
   let t=$("#calToast");
   if(!t){ t=document.createElement("div"); t.id="calToast"; t.className="cal-toast"; document.body.appendChild(t); }
-  t.innerHTML=`已取消 ${ds.slice(5)} 打卡<button type="button" id="calUndo">撤销</button>`;
+  t.innerHTML=`${msg}<button type="button" id="calUndo">撤销</button>`;
   t.classList.add("show");
-  const undo=$("#calUndo"); if(undo) undo.onclick=()=>{ item.log=item.log||{}; item.log[ds]=true; persist(); hideCalToast(); };
+  const u=$("#calUndo"); if(u) u.onclick=()=>{ hideCalToast(); if(fn) fn(); };
   clearTimeout(calToastTimer);
-  calToastTimer=setTimeout(hideCalToast, 4000);
+  calToastTimer=setTimeout(hideCalToast, ms||5000);
+}
+function showCalUndo(item, ds){
+  undoToast(`已取消 ${ds.slice(5)} 打卡`, ()=>{ item.log=item.log||{}; item.log[ds]=true; persist(); }, 4000);
 }
 function hideCalToast(){ const t=$("#calToast"); if(t) t.classList.remove("show"); }
 function confirmCalUncheck(item, ds){
@@ -1304,6 +1334,7 @@ function renderModule(key){
   }
   const filterBar = (m.type==="finance") ? renderFinanceFilter() : (m.type==="note" ? renderTagBar(key) : "");
   $("#screen").innerHTML = `<div class="greet"><div><h1>${m.name}</h1><p>${m.desc}</p></div>
+      <button class="add-batch ${batchMode?'on':''}" id="btn-batch" title="批量操作" aria-label="批量操作">${icon("check",16,2.4)}</button>
       <button class="add" id="btn-add">${icon("plus",16,2.2)}新建</button></div>
     <div style="margin-top:16px">${head}${extra}
       ${filterBar}<div class="sec-title">记录</div>${body}</div>`;
@@ -1942,6 +1973,24 @@ function renderTodoArchive(){
 
 function wireModule(key){
   const m=modOf(key);
+  // P2-6 批量模式：只保留筛选 / 标签 / 日历与批量交互
+  if(batchMode){
+    $("#screen").classList.add("batch");
+    const bb=$("#btn-batch"); if(bb) bb.onclick=()=>batchToggle();
+    $("#screen").querySelectorAll("[data-tagnav]").forEach(el=>el.onclick=()=>{ noteTag=el.dataset.tagnav; renderModule(key); });
+    $("#screen").querySelectorAll(".fchip").forEach(el=>el.onclick=()=>{
+      if(el.dataset.ftype!==undefined) financeFilter.type=el.dataset.ftype;
+      if(el.dataset.fcat!==undefined) financeFilter.cat=el.dataset.fcat;
+      if(el.dataset.frange!==undefined) finRange=el.dataset.frange;
+      renderModule(key);
+    });
+    $("#screen").querySelectorAll(".js-collapse").forEach(el=>el.onclick=()=>el.classList.toggle("collapsed"));
+    if(m.type==="checkin") wireCalendar(key, data[key]||[]);
+    addBatchBoxes(); paintBatchBar();
+    return;
+  }
+  paintBatchBar();
+  const bb0=$("#btn-batch"); if(bb0) bb0.onclick=()=>batchToggle();
   $("#screen").querySelectorAll(".js-chk").forEach(el=>el.onclick=e=>{
     e.stopPropagation(); const x=(data[key]).find(i=>i.id==el.dataset.id);
     if(m.type==="todo"){ x.done=!x.done; }
@@ -2165,22 +2214,173 @@ function newItem(m){
   return item;
 }
 
+/* ===================== P2-6 回收站 / 批量 / 撤销 ===================== */
+const TRASH_DAYS = 30, TRASH_MAX = 200;
+
+function trashPush(key, item){
+  data.__trash = Array.isArray(data.__trash) ? data.__trash : [];
+  data.__trash.unshift({ key:key, at:new Date().toISOString(), item:JSON.parse(JSON.stringify(item)) });
+  const cut = Date.now() - TRASH_DAYS*86400000;
+  data.__trash = data.__trash.filter(t=>(Date.parse(t.at)||Date.now()) >= cut).slice(0, TRASH_MAX);
+}
+function softDelete(key, id){
+  const arr = data[key] || [];
+  const i = arr.findIndex(x=>x.id==id);
+  if(i<0) return null;
+  const item = arr[i];
+  trashPush(key, item);
+  arr.splice(i,1);
+  return { key:key, item:item, index:i };
+}
+function undoDelete(rec){
+  if(!rec) return;
+  const t = data.__trash || [];
+  const i = t.findIndex(x=>x.item && x.item.id===rec.item.id);
+  if(i>=0) t.splice(i,1);
+  const arr = data[rec.key] = data[rec.key] || [];
+  arr.splice(Math.min(rec.index, arr.length), 0, rec.item);
+  persist();
+  toast("已撤销删除");
+}
+function restoreTrash(idx){
+  const t = (data.__trash||[])[idx]; if(!t) return;
+  (data[t.key] = data[t.key] || []).unshift(t.item);
+  data.__trash.splice(idx,1);
+  store.save(); render();
+  toast("已还原「"+esc(t.item.title||"记录")+"」");
+}
+function purgeOldTrash(){
+  const t = data.__trash;
+  if(!Array.isArray(t) || !t.length) return;
+  const cut = Date.now() - TRASH_DAYS*86400000;
+  const kept = t.filter(x=>(Date.parse(x.at)||Date.now()) >= cut).slice(0, TRASH_MAX);
+  if(kept.length !== t.length){ data.__trash = kept; store.save(); }
+}
+function openTrash(){
+  const list = Array.isArray(data.__trash) ? data.__trash : [];
+  const rows = list.length
+    ? list.map((t,i)=>{
+        const m = modOf(t.key);
+        return `<div class="cat-row"><span class="tpl-name">${esc(t.item.title||"未命名")}</span>
+          <span class="tpl-amt">${esc(m?m.name:t.key)} · ${esc(String(t.at).slice(0,10))}</span>
+          <button class="mini-act" data-rst="${i}">还原</button></div>`;
+      }).join("")
+    : `<div class="chart-empty">回收站是空的</div>`;
+  const overlay = document.createElement("div"); overlay.className = "overlay";
+  overlay.innerHTML = `<div class="modal"><div class="grab"></div><h2>回收站</h2>
+    <div class="sub">删除的记录会在这里保留 ${TRASH_DAYS} 天，之后自动清理。</div>${rows}
+    <div class="modal-actions">${list.length?`<button class="link-danger" id="trClear">清空回收站</button>`:""}
+      <button class="btn ghost" id="trClose">关闭</button></div></div>`;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.onclick = e => { if(e.target===overlay) close(); };
+  overlay.querySelector("#trClose").onclick = close;
+  overlay.querySelectorAll("[data-rst]").forEach(b=>b.onclick=()=>{ close(); restoreTrash(+b.dataset.rst); });
+  const cl = overlay.querySelector("#trClear");
+  if(cl) cl.onclick = async () => {
+    close();
+    const ok = await confirmBox({ title:"清空回收站", sub:"清空后这些记录将无法找回，确定吗？", okText:"清空", okClass:"btn danger" });
+    if(!ok) return;
+    data.__trash = []; store.save(); render();
+    toast("回收站已清空");
+  };
+}
+
+function batchToggle(){
+  batchMode = !batchMode; batchSel.clear();
+  if(!batchMode) paintBatchBar();
+  render();
+}
+function addBatchBoxes(){
+  const screen = $("#screen");
+  screen.querySelectorAll(".rec[data-rid]").forEach(el=>{
+    if(el.querySelector(".bsel")) return;
+    const b = document.createElement("span");
+    b.className = "bsel"; b.setAttribute("role","checkbox"); b.setAttribute("aria-label","选择这条记录");
+    b.innerHTML = icon("check",11,3);
+    b.onclick = e => {
+      e.stopPropagation();
+      const id = el.dataset.rid;
+      if(batchSel.has(id)) batchSel.delete(id); else batchSel.add(id);
+      el.classList.toggle("sel", batchSel.has(id));
+      paintBatchBar();
+    };
+    el.appendChild(b);
+    el.classList.toggle("sel", batchSel.has(el.dataset.rid));
+  });
+}
+function paintBatchBar(){
+  let bar = $("#batchBar");
+  if(!batchMode){ if(bar) bar.remove(); return; }
+  if(!bar){
+    bar = document.createElement("div"); bar.id = "batchBar"; bar.className = "batchbar";
+    document.body.appendChild(bar);
+  }
+  const m = modOf(view);
+  bar.innerHTML = `<span class="bb-n">已选 ${batchSel.size}</span>
+    <button class="mini-act" id="bAll">全选</button>
+    ${(m && m.type==="todo")?`<button class="mini-act" id="bDone">标为完成</button>`:""}
+    <button class="mini-act" id="bDel">删除</button>
+    <button class="mini-act" id="bExit">退出</button>`;
+  bar.querySelector("#bAll").onclick = () => {
+    const els = [...$("#screen").querySelectorAll(".rec[data-rid]")];
+    if(batchSel.size === els.length) batchSel.clear();
+    else els.forEach(e=>batchSel.add(e.dataset.rid));
+    els.forEach(e=>e.classList.toggle("sel", batchSel.has(e.dataset.rid)));
+    paintBatchBar();
+  };
+  const bd = bar.querySelector("#bDone");
+  if(bd) bd.onclick = () => batchMarkDone();
+  bar.querySelector("#bDel").onclick = () => batchDelete();
+  bar.querySelector("#bExit").onclick = () => { batchMode=false; batchSel.clear(); paintBatchBar(); render(); };
+}
+function batchMarkDone(){
+  const key = view, arr = data[key] || [];
+  let n = 0;
+  arr.forEach(x=>{ if(batchSel.has(String(x.id))){ x.done = true; n++; } });
+  batchMode = false; batchSel.clear(); paintBatchBar();
+  toast(n ? `已标记 ${n} 项完成` : "没有选中任何记录");
+  persist();
+}
+async function batchDelete(){
+  const key = view, ids = [...batchSel];
+  if(!ids.length){ toast("先选中要删除的记录","error"); return; }
+  const ok = await confirmBox({
+    title:"批量删除",
+    sub:`将把选中的 ${ids.length} 条记录移入回收站，30 天内都可以还原。`,
+    okText:"移入回收站", okClass:"btn danger",
+  });
+  if(!ok) return;
+  let n = 0;
+  ids.forEach(id=>{ if(softDelete(key, id)) n++; });
+  batchMode = false; batchSel.clear(); paintBatchBar();
+  toast(`已移入回收站 ${n} 条`);
+  persist();
+}
+
 /* ---------- delete confirm ---------- */
 function confirmDelete(key,id){
   const item=(data[key]||[]).find(i=>i.id==id); if(!item) return;
   const overlay=document.createElement("div"); overlay.className="overlay";
   overlay.innerHTML=`<div class="modal"><div class="grab"></div><h2>删除记录</h2>
-    <div class="sub">确定删除「${esc(item.title||'这条记录')}」？此操作不可撤销。</div>
-    <div class="modal-actions"><button class="btn ghost" id="c-cancel">取消</button><button class="btn danger" id="c-ok">删除</button></div></div>`;
+    <div class="sub">「${esc(item.title||'这条记录')}」会被移入回收站，${TRASH_DAYS} 天内可以还原。</div>
+    <div class="modal-actions"><button class="btn ghost" id="c-cancel">取消</button><button class="btn danger" id="c-ok">移入回收站</button></div></div>`;
   document.body.appendChild(overlay);
   const close=()=>overlay.remove();
   overlay.onclick=e=>{ if(e.target===overlay) close(); };
   overlay.querySelector("#c-cancel").onclick=close;
-  overlay.querySelector("#c-ok").onclick=()=>{ data[key]=data[key].filter(i=>i.id!=id); persist(); close(); };
+  overlay.querySelector("#c-ok").onclick=()=>{
+    const removed = softDelete(key, id);
+    persist(); close();
+    if(removed) undoToast(`已删除「${esc(removed.item.title||"记录")}」`, ()=>undoDelete(removed));
+  };
 }
 
 /* ---------- router / nav ---------- */
-function go(v){ view=v; closeDrawer(); render(); window.scrollTo({top:0}); }
+function go(v){
+  if(batchMode){ batchMode=false; batchSel.clear(); paintBatchBar(); }
+  view=v; closeDrawer(); render(); window.scrollTo({top:0});
+}
 function render(){
   if(view==="search"){ $("#topTitle").firstChild.textContent="搜索"; $("#topSub").textContent="跨模块查找记录"; $("#nav").querySelectorAll(".n").forEach(n=>n.classList.remove("active")); renderSearch(); return; }
   // top title
@@ -2249,6 +2449,7 @@ function buildDrawer(){
     `<div class="ditem" data-tool="export">${icon("download",20)}导出数据</div>`,
     `<div class="ditem" data-tool="import">${icon("upload",20)}导入数据</div>`,
     `<div class="ditem" data-tool="rollover">${icon("repeat",20)}每日自动结转<span class="dstate">${data.__todoRollover===false?"已关闭":"已开启"}</span></div>`,
+    `<div class="ditem" data-tool="trash">${icon("trash",20)}回收站<span class="dstate">${(Array.isArray(data.__trash)?data.__trash.length:0) || ""}</span></div>`,
     `<div class="ditem" data-tool="help">${icon("book",20)}玩法 / 帮助</div>`,
   ].join("");
   $("#drawerTools").querySelectorAll("[data-tool]").forEach(el=>{
@@ -2263,6 +2464,7 @@ function buildDrawer(){
           data.__todoRollover=!cur; store.save(); buildDrawer();
           toast(data.__todoRollover?"已开启：未完成任务次日自动顺延":"已关闭每日自动结转");
         }
+        else if(t==="trash") openTrash();
         else if(t==="help") showOnboarding();
       }, 180);
     };
@@ -2431,6 +2633,7 @@ function showOnboarding(){
   overlay.querySelector("#ob-ok").onclick=()=>{ data.__onboarded=true; store.save(); overlay.remove(); };
 }
 
+purgeOldTrash();
 ensureRecurring();
 ensureTodoRollover();
 buildDrawer();
