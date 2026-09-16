@@ -464,6 +464,23 @@
   .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
   .copy-btn { margin-top:12px; }
 
+  /* ---- P2-5 笔记增强 ---- */
+  .rec .tag-line { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .rec .tag { font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-muted);
+    padding:2px 9px; border-radius:999px; cursor:pointer; }
+  .rec .tag:active { opacity:.7; }
+  .rnote.md { line-height:1.65; }
+  .rnote.md code { font-family:var(--font-mono,ui-monospace,SFMono-Regular,Menlo,monospace); font-size:12px;
+    background:var(--surface-nested); padding:1px 5px; border-radius:5px; }
+  .rnote.md a { color:var(--accent); text-decoration:underline; word-break:break-all; }
+  .rnote.md .md-ul { margin:5px 0 5px 17px; padding:0; }
+  .rnote.md .md-ul li { margin:2px 0; }
+  .rnote.md .md-h { font-size:13.5px; font-weight:700; color:var(--text); margin:7px 0 3px; }
+  .img-pick { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .img-hint { font-size:11.5px; color:var(--text-tertiary); }
+  .img-prev { margin-top:9px; }
+  .img-prev img { width:100%; max-height:180px; object-fit:cover; border-radius:var(--radius-tile); display:block; }
+
   /* ---- P2-4 记账增强 ---- */
   .fin-range { display:flex; gap:6px; margin-top:8px; }
   .tpl-bar { margin-top:4px; }
@@ -683,7 +700,7 @@ const CONFIG = {
       type: "note", desc: "把闪念装进时光胶囊 · 文字·摘录·心情",
       moods: ["开心", "平静", "低落", "焦虑", "疲惫"],
       seed: [
-        { id: 61, title: "今天的小确幸", content: "阳台的多肉冒出了新芽，顺手拍了张照片。", mood: "开心", date: isoToday() },
+        { id: 61, title: "今天的小确幸", content: "阳台的多肉冒出了新芽，顺手拍了张照片。\n\n**记一笔**：情绪好的时候，效率会自己找上门。", mood: "开心", date: isoToday(), tags: ["生活", "心情"] },
       ],
     },
     {
@@ -691,7 +708,7 @@ const CONFIG = {
       type: "note", desc: "热点内容·收藏·稍后阅读",
       moods: ["收藏", "稍后读", "已读"],
       seed: [
-        { id: 71, title: "AI 提示词技巧合集", content: "整理常用提示词模板，方便复用。", mood: "收藏", date: isoToday() },
+        { id: 71, title: "AI 提示词技巧合集", content: "- 角色 + 目标 + 约束三段式\n- 先给例子再提要求\n- 输出格式写死", mood: "收藏", date: isoToday(), tags: ["AI", "方法论"] },
       ],
     },
   ],
@@ -769,6 +786,7 @@ let data = store.load();
 let view = "home";
 let searchQuery = "";
 let insightPeriod = "6m";            // 洞察页时间范围：1m/3m/6m/12m/all
+let noteTag = "all";                 // P2-5 笔记标签筛选
   let financeFilter = { type:"all", cat:"all" };            // home | insight | <moduleKey>
 function persist(){ store.save(); render(); }
 
@@ -1267,11 +1285,24 @@ function renderModule(key){
   if(m.type==="checkin") extra=renderCalendar(m,it);
   if(m.type==="todo") extra=renderTodoArchive();
   if(m.type==="finance") extra=renderTemplateChips();
-  const viewIt = (m.type==="finance") ? filterFinance(it) : it;
-  const body = !viewIt.length
-    ? `<div class="empty"><span class="e">${icon(m.icon,26)}</span><div>还没有记录，点上方「新建」添加第一条吧</div></div>`
-    : (m.type==="finance" ? renderFinanceGroups(m, viewIt) : it.map(x=>recHTML(m,x)).join(""));
-  const filterBar = (m.type==="finance") ? renderFinanceFilter() : "";
+  // P2-5 标签筛选失效时自动回到「全部」
+  if(m.type==="note" && noteTag!=="all" && !it.some(x=>(x.tags||[]).includes(noteTag))) noteTag="all";
+  const viewIt = (m.type==="finance")
+    ? filterFinance(it)
+    : (m.type==="note" && noteTag!=="all") ? it.filter(x=>(x.tags||[]).includes(noteTag)) : it;
+  const emptyHTML = `<div class="empty"><span class="e">${icon(m.icon,26)}</span><div>还没有记录，点上方「新建」添加第一条吧</div></div>`;
+  let body;
+  if(m.type==="finance"){
+    body = viewIt.length ? renderFinanceGroups(m, viewIt) : emptyHTML;
+  } else if(!viewIt.length){
+    body = emptyHTML;
+  } else {
+    const pin=viewIt.filter(x=>x.pinned), rest=viewIt.filter(x=>!x.pinned);
+    body = (pin.length?`<div class="sec-title">${icon("star",15)} 置顶<span class="more">${pin.length}</span></div>${pin.map(x=>recHTML(m,x)).join("")}`:"")
+         + (pin.length&&rest.length?`<div class="sec-title">其余记录<span class="more">${rest.length}</span></div>`:"")
+         + rest.map(x=>recHTML(m,x)).join("");
+  }
+  const filterBar = (m.type==="finance") ? renderFinanceFilter() : (m.type==="note" ? renderTagBar(key) : "");
   $("#screen").innerHTML = `<div class="greet"><div><h1>${m.name}</h1><p>${m.desc}</p></div>
       <button class="add" id="btn-add">${icon("plus",16,2.2)}新建</button></div>
     <div style="margin-top:16px">${head}${extra}
@@ -1395,10 +1426,12 @@ function recHTML(m,x){
       <div class="amt ${inc?'inc':'exp'}" style="margin-left:auto">${inc?'+':'-'}¥${x.amount}</div></div></div>`;
   }
   // note
+  const tags=(x.tags||[]);
+  const tagLine=tags.length?`<div class="tag-line">${tags.map(t=>`<span class="tag js-tag" data-tag="${attr(t)}">#${esc(t)}</span>`).join("")}</div>`:'';
   return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">${thumb}<div class="body" data-edit="${x.id}">
     <div class="rname">${esc(x.title||'无标题')}</div>
     <div class="rmeta">${x.mood?`<span class="badge" style="background:var(--accent-muted);color:var(--accent)">${esc(x.mood)}</span>`:''}<span style="color:var(--text-secondary);font-size:12px">${x.date||''}</span></div>
-    ${x.content?`<div class="rnote">${esc(x.content)}</div>`:''}${customBlock}</div></div></div>`;
+    ${x.content?`<div class="rnote md">${mdLite(x.content)}</div>`:''}${tagLine}${customBlock}</div></div></div>`;
 }
 
 /* finance 折叠分组：按 月份 → 日期 两级可折叠 */
@@ -1464,6 +1497,73 @@ function renderFinanceGroups(m, it){
       <div class="grp-body">${budgetRow}${daysHTML}</div>
     </div>`;
   }).join("");
+}
+
+/* ===================== P2-5 笔记助手 ===================== */
+/* 轻量 Markdown：粗体 / 行内代码 / 链接 / 无序列表 / 井号标题（先转义再渲染） */
+function mdLite(src){
+  let t = esc(String(src ?? ""));
+  t = t.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  t = t.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  t = t.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  const lines = t.split("\n");
+  let html = "", inList = false;
+  lines.forEach(ln=>{
+    const li = ln.match(/^\s*[-*+]\s+(.*)$/);
+    if(li){
+      if(!inList){ html += '<ul class="md-ul">'; inList = true; }
+      html += '<li>' + li[1] + '</li>';
+      return;
+    }
+    if(inList){ html += '</ul>'; inList = false; }
+    const h = ln.match(/^(#{1,3})\s+(.*)$/);
+    if(h){ html += '<div class="md-h">' + h[2] + '</div>'; return; }
+    html += (ln ? ln + '<br>' : '<br>');
+  });
+  if(inList) html += '</ul>';
+  return html.replace(/(<br>)+$/, "");
+}
+/* 图片压缩：长边缩到 maxSide，输出 JPEG dataURL */
+function compressImage(file, maxSide, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode"));
+      img.onload = () => {
+        try{
+          let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+          const sc = Math.min(1, (maxSide||800) / Math.max(w,h));
+          w = Math.max(1, Math.round(w*sc)); h = Math.max(1, Math.round(h*sc));
+          const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+          const ctx = cv.getContext("2d");
+          ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,w,h);
+          ctx.drawImage(img, 0, 0, w, h);
+          let out = cv.toDataURL("image/jpeg", quality||0.78);
+          if(out.length > 900*1024) out = cv.toDataURL("image/jpeg", 0.5);
+          resolve(out);
+        }catch(err){ reject(err); }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+/* 本机占用估算（KB） */
+function storageKB(){
+  try{ return Math.round(((localStorage.getItem(CONFIG.storageKey)||"").length + (data.__avatar||"").length)/1024); }
+  catch(e){ return 0; }
+}
+/* 标签云筛选条 */
+function renderTagBar(key){
+  const it = data[key]||[];
+  const all = [...new Set(it.flatMap(x=>x.tags||[]))].sort();
+  if(!all.length) return "";
+  const chips = [`<button class="fchip ${noteTag==="all"?'on':''}" data-tagnav="all">全部</button>`]
+    .concat(all.map(t=>`<button class="fchip ${noteTag===t?'on':''}" data-tagnav="${attr(t)}">#${esc(t)}</button>`));
+  return `<div class="filterbar"><div class="frow">${chips.join("")}</div></div>`;
 }
 
 /* ===================== P2-4 记账助手 ===================== */
@@ -1884,6 +1984,9 @@ function wireModule(key){
     else if(x.subs.some(t=>!t.done)) x.done=false;
     bump(10); persist();
   });
+  // P2-5 笔记标签筛选
+  $("#screen").querySelectorAll("[data-tagnav]").forEach(el=>el.onclick=()=>{ noteTag=el.dataset.tagnav; renderModule(key); });
+  $("#screen").querySelectorAll(".js-tag").forEach(el=>el.onclick=e=>{ e.stopPropagation(); noteTag=el.dataset.tag; renderModule(key); });
   // P2-4 记账：区间聚合 / 模板 / 分类管理 / CSV
   $("#screen").querySelectorAll("[data-frange]").forEach(el=>el.onclick=()=>{ finRange=el.dataset.frange; renderModule(key); });
   $("#screen").querySelectorAll(".js-tpluse").forEach(el=>el.onclick=()=>useTemplate(+el.dataset.i));
@@ -1955,7 +2058,8 @@ function openEditor(key, item){
   } else { // note
     fields=`<div class="field"><label>标题</label><input id="f-title" value="${attr(d.title)}" placeholder="给这条起个名"/></div>
       ${(m.moods&&m.moods.length)?`<div class="field"><label>标签 / 心情</label><div class="seg" style="flex-wrap:wrap" id="f-mood">${m.moods.map(md=>`<div class="opt ${md===d.mood?'on':''}" data-v="${attr(md)}" style="flex:0 0 auto">${md}</div>`).join("")}</div></div>`:''}
-      <div class="field"><label>内容</label><textarea id="f-content" placeholder="写点什么…">${esc(d.content||'')}</textarea></div>
+      <div class="field"><label>标签（空格或逗号分隔）</label><input id="f-tags" value="${attr((d.tags||[]).join(" "))}" placeholder="读书 方法论 待整理"/></div>
+      <div class="field"><label>内容</label><textarea id="f-content" placeholder="写点什么…支持 **粗体**、行内代码、- 列表、链接">${esc(d.content||'')}</textarea></div>
       <div class="field"><label>日期</label><input id="f-date" type="date" value="${d.date||isoToday()}"/></div>`;
   }
 
@@ -1972,7 +2076,12 @@ function openEditor(key, item){
     else fields+=`<div class="field"><label>${esc(f.label)}</label><input id="f-cf-${f.key}" value="${attr(v)}" placeholder="${attr(f.placeholder||'')}"/></div>`;
   });
   // shared image URL field (all types)
-  fields+=`<div class="field"><label>图片 URL（可选）</label><input id="f-image" value="${attr(d.image||'')}" placeholder="https://..."/></div>`;
+  fields+=`<div class="field"><label>图片 URL（可选）</label><input id="f-image" value="${attr(d.image||'')}" placeholder="https://..."/></div>
+    <div class="field"><label>或本机图片（自动压缩）</label>
+      <div class="img-pick"><button type="button" class="mini-act" id="f-imgbtn">${icon("camera",12)} 选择图片</button>
+        <span class="img-hint" id="f-imghint">长边压到 800px 后存本机 · 已用 ${storageKB()} KB</span></div>
+      <input type="file" id="f-imgfile" accept="image/*" hidden/>
+      <div class="img-prev" id="f-imgprev">${d.image?`<img src="${attr(d.image)}" alt="图片预览"/>`:''}</div></div>`;
 
   const overlay=document.createElement("div"); overlay.className="overlay";
   overlay.innerHTML=`<div class="modal"><div class="grab"></div>
@@ -1988,6 +2097,25 @@ function openEditor(key, item){
   overlay.querySelectorAll(".seg").forEach(seg=>seg.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{
     seg.querySelectorAll(".opt").forEach(x=>x.classList.remove("on")); o.classList.add("on");
   }));
+  // P2-5 本机图片：压缩后写入 dataURL
+  const imgBtn=overlay.querySelector("#f-imgbtn"), imgFile=overlay.querySelector("#f-imgfile");
+  if(imgBtn && imgFile){
+    imgBtn.onclick=()=>imgFile.click();
+    imgFile.onchange=e=>{
+      const f=e.target.files && e.target.files[0];
+      e.target.value="";
+      if(!f) return;
+      imgBtn.textContent="压缩中…";
+      compressImage(f, 800, 0.78).then(url=>{
+        overlay.querySelector("#f-image").value=url;
+        overlay.querySelector("#f-imgprev").innerHTML=`<img src="${url}" alt="图片预览"/>`;
+        const kb=Math.round(url.length/1024);
+        overlay.querySelector("#f-imghint").textContent=`已压缩为约 ${kb} KB · 本机已用 ${storageKB()} KB`;
+        if(kb>500 || storageKB()>3800) toast("本机存储接近上限，建议导出备份后清理旧图","error");
+      }).catch(()=>toast("图片处理失败，换一张试试","error"))
+        .finally(()=>{ imgBtn.innerHTML=icon("camera",12)+" 重新选择"; });
+    };
+  }
   if(editing) overlay.querySelector("#m-del").onclick=()=>{ close(); confirmDelete(key, d.id); };
   overlay.querySelector("#m-save").onclick=()=>{
     const val=id=>{ const el=overlay.querySelector(id); return el?el.value:undefined; };
@@ -2005,7 +2133,12 @@ function openEditor(key, item){
     else if(m.type==="progress"){ d.current=Math.max(0,+val("#f-cur")||0); d.target=Math.max(1,+val("#f-tgt")||1);
       d.unit=(val("#f-unit")||"").trim(); d.note=(val("#f-note")||"").trim(); d.period=seg("#f-period")||"total"; }
     else if(m.type==="finance"){ d.type=seg("#f-ftype")||"expense"; d.amount=Math.max(0,+val("#f-amt")||0); d.category=seg("#f-cat")||cats()[0]||"其他"; d.date=val("#f-date"); d.repeat=(seg("#f-repeat")==="repeat"); }
-    else if(m.type==="note"){ d.mood=seg("#f-mood")||d.mood||""; d.content=(val("#f-content")||"").trim(); d.date=val("#f-date"); }
+    else if(m.type==="note"){
+      d.mood=seg("#f-mood")||d.mood||"";
+      d.content=(val("#f-content")||"").trim();
+      d.date=val("#f-date");
+      d.tags=(val("#f-tags")||"").split(/[\s,，、]+/).map(t=>t.replace(/^#+/,"").trim()).filter(Boolean).slice(0,8);
+    }
     // save custom fields
     (m.fields||[]).forEach(f=>{
       if(f.type==="select") d[f.key]=seg("#f-cf-"+f.key)||d[f.key]||"";
@@ -2026,7 +2159,7 @@ function newItem(m){
   else if(m.type==="checkin") item={...base, title:"", log:{}, goal:1, unit:"次"};
   else if(m.type==="progress") item={...base, title:"", current:0, target: (m.unit==="页"?100:20), unit:m.unit||"", note:"", period:"total", log:{}};
   else if(m.type==="finance") item={...base, title:"", type:"expense", amount:"", category:cats()[0]||"其他", date:isoToday(), repeat:false};
-  else item={...base, title:"", content:"", mood:(m.moods&&m.moods[0])||"", date:isoToday()};
+  else item={...base, title:"", content:"", mood:(m.moods&&m.moods[0])||"", date:isoToday(), tags:[]};
   // initialize custom fields
   (m.fields||[]).forEach(f=>{ if(!(f.key in item)) item[f.key]= f.type==="select"?(f.options&&f.options[0]||""):""; });
   return item;
@@ -2084,7 +2217,7 @@ function renderSearchResults(){
   const groups=[];
   CONFIG.modules.forEach(m=>{
     const hits=(data[m.key]||[]).filter(x=>{
-      const hay=[x.title,x.content,x.note,x.category,x.mood,x.priority,x.type,(x.log&&typeof x.log==="object"?Object.keys(x.log).length+"":""),x.date]
+      const hay=[x.title,x.content,x.note,x.category,x.mood,x.priority,x.type,(x.tags||[]).join(" "),(x.subs||[]).map(s=>s.t).join(" "),(x.log&&typeof x.log==="object"?Object.keys(x.log).length+"":""),x.date]
         .filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
