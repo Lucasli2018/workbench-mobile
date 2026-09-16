@@ -464,6 +464,10 @@
   .anomaly { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; color:var(--danger); background:var(--accent-muted); padding:8px 10px; border-radius:8px; }
   .copy-btn { margin-top:12px; }
 
+  /* ---- P2-2 打卡增强 ---- */
+  .cal-panel .cal-foot + .cal-foot { margin-top: 6px; }
+  .rec .sub-goal { font-size:12px; color:var(--text-secondary); font-weight:600; }
+
   /* ---------- P2-1 任务增强：子任务 / 拖拽 / 顺延 / 番茄钟 ---------- */
   .rec .drag { flex:0 0 auto; width:18px; height:22px; padding:0; margin-top:1px; border:none; background:transparent;
     color:var(--text-tertiary); display:grid; place-items:center; cursor:grab; touch-action:none; }
@@ -610,9 +614,9 @@ const CONFIG = {
       key: "checkin", name: "每日签到", icon: "leaf", tint: "#d1fae5", color: "var(--module-1)",
       type: "checkin", desc: "喝水·早睡·补品等每日打卡",
       seed: [
-        { id: 21, title: "喝够 8 杯水", log: {} },
-        { id: 22, title: "23:30 前睡觉", log: {} },
-        { id: 23, title: "维生素 / 补品", log: {} },
+        { id: 21, title: "喝够 8 杯水", log: {}, goal: 8, unit: "杯" },
+        { id: 22, title: "23:30 前睡觉", log: {}, goal: 1, unit: "次" },
+        { id: 23, title: "维生素 / 补品", log: {}, goal: 1, unit: "次" },
       ],
     },
     {
@@ -878,7 +882,8 @@ function renderCalendar(m, it){
     <div class="cal-chips">${chips}</div>
     <div class="cal-dow">${"日一二三四五六".split("").map(x=>`<span>${x}</span>`).join("")}</div>
     <div class="cal-grid">${cells}</div>
-    <div class="cal-foot">${icon("flame",13)} 连续 ${streak(log)} 天 · 本月 ${monthCount}/${days} 天</div></div>`;
+    <div class="cal-foot">${icon("flame",13)} 连续 ${streak(log)} 天 · 最长 ${bestStreak(log)} 天 · 本月 ${monthCount}/${days} 天</div>
+    <div class="cal-foot">${icon("target",13)} 近7日 ${rateDays(log,7)}/7 · 近30日 ${rateDays(log,30)}/30</div></div>`;
 }
 function wireCalendar(key, it){
   const block=$("#screen").querySelector(".cal-panel"); if(!block) return;
@@ -935,7 +940,13 @@ function wireHome(){
   $("#screen").querySelectorAll(".js-pin-chk").forEach(el=>el.onclick=e=>{
     e.stopPropagation(); const m=modOf(el.dataset.mkey), x=find(el); if(!x) return;
     if(m.type==="todo"){ x.done=!x.done; }
-    else if(m.type==="checkin"){ x.log=x.log||{}; const t=today(); x.log[t]?delete x.log[t]:x.log[t]=true; }
+    else if(m.type==="checkin"){
+      x.log=x.log||{};
+      const tt=today(); const goal=Math.max(1,+x.goal||1);
+      if(goal<=1){ x.log[tt]?delete x.log[tt]:x.log[tt]=1; }
+      else { x.log[tt]=Math.min(goal, logCount(x.log,tt)+1); }
+      bump(10);
+    }
     persist();
   });
   // 置顶卡：就地改数字
@@ -1281,12 +1292,19 @@ function recHTML(m,x){
       ${x.note?`<div class="rnote">${esc(x.note)}</div>`:''}${subsHTML}${customBlock}</div></div></div>`;
   }
   if(m.type==="checkin"){
-    const on=!!(x.log&&x.log[today()]); const st=streak(x.log);
+    const goal=Math.max(1, +x.goal||1);
+    const cnt=logCount(x.log, today());
+    const on=cnt>0; const st=streak(x.log);
+    const goalBadge=goal>1?`<span class="badge" style="background:var(--accent-muted);color:var(--accent)">${cnt}/${goal} ${esc(x.unit||"次")}</span>`:'';
+    const minus=(goal>1 && cnt>0)?`<button class="mini-act js-ckminus" data-id="${x.id}" title="减一次">-1</button>`:'';
+    const r7=rateDays(x.log,7);
     return `<div class="rec ${layoutCls}" data-rid="${x.id}">${acts}<div class="top">
       <div class="chk js-chk ${on?'on':''}" data-id="${x.id}">${chkMark}</div>
       ${thumb}
       <div class="body" data-edit="${x.id}"><div class="rname">${esc(x.title)}</div>
-      <div class="rmeta"><span class="streak">${icon("flame",13)} 连续 ${st} 天</span>${on?'<span class="badge" style="background:var(--accent-muted);color:var(--accent)">今日已打卡</span>':''}</div>${customBlock}</div></div></div>`;
+      <div class="rmeta"><span class="streak">${icon("flame",13)} 连续 ${st} 天</span>${goalBadge}
+        <span class="badge" style="background:var(--surface-nested);color:var(--text-secondary)">近7日 ${r7}/7</span>
+        ${(on&&goal<=1)?'<span class="badge" style="background:var(--accent-muted);color:var(--accent)">今日已打卡</span>':''}${minus}</div>${customBlock}</div></div></div>`;
   }
   if(m.type==="progress"){
     const pct=Math.min(100,Math.round((x.current/x.target)*100||0));
@@ -1392,6 +1410,29 @@ function streak(log){
   for(;;){ const key=d.toISOString().slice(0,10); if(log[key]){ n++; d.setDate(d.getDate()-1); } else break; }
   return n;
 }
+
+/* P2-2 近 n 日完成天数 */
+function rateDays(log, n){
+  if(!log) return 0;
+  let c=0; const d=new Date();
+  for(let i=0;i<n;i++){ if(log[d.toISOString().slice(0,10)]) c++; d.setDate(d.getDate()-1); }
+  return c;
+}
+/* P2-2 历史最长连击 */
+function bestStreak(log){
+  if(!log) return 0;
+  const keys=Object.keys(log).filter(k=>log[k]).sort();
+  if(!keys.length) return 0;
+  let best=1, cur=1;
+  for(let i=1;i<keys.length;i++){
+    const gap=Math.round((new Date(keys[i]+"T00:00:00") - new Date(keys[i-1]+"T00:00:00"))/86400000);
+    cur = gap===1 ? cur+1 : 1;
+    if(cur>best) best=cur;
+  }
+  return best;
+}
+/* P2-2 打卡计数（兼容旧的 true/false 记录） */
+function logCount(log, ds){ return log && log[ds] ? (+log[ds]||1) : 0; }
 
 /* ===================== P2-1 番茄钟 ===================== */
 const POMO_MIN = 25;
@@ -1551,7 +1592,13 @@ function wireModule(key){
   $("#screen").querySelectorAll(".js-chk").forEach(el=>el.onclick=e=>{
     e.stopPropagation(); const x=(data[key]).find(i=>i.id==el.dataset.id);
     if(m.type==="todo"){ x.done=!x.done; }
-    else if(m.type==="checkin"){ x.log=x.log||{}; const t=today(); x.log[t]?delete x.log[t]:x.log[t]=true; }
+    else if(m.type==="checkin"){
+      x.log=x.log||{};
+      const tt=today(); const goal=Math.max(1,+x.goal||1);
+      if(goal<=1){ x.log[tt]?delete x.log[tt]:x.log[tt]=1; }
+      else { x.log[tt]=Math.min(goal, logCount(x.log,tt)+1); }
+      bump(10);
+    }
     persist();
   });
   $("#screen").querySelectorAll("[data-edit]").forEach(el=>el.onclick=()=>openEditor(key,(data[key]).find(i=>i.id==el.dataset.edit)));
@@ -1584,6 +1631,15 @@ function wireModule(key){
     else if(x.subs.some(t=>!t.done)) x.done=false;
     bump(10); persist();
   });
+  // P2-2 打卡减一
+  $("#screen").querySelectorAll(".js-ckminus").forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const x=(data[key]||[]).find(i=>i.id==el.dataset.id); if(!x) return;
+    x.log=x.log||{}; const tt=today();
+    const c=logCount(x.log,tt)-1;
+    if(c<=0) delete x.log[tt]; else x.log[tt]=c;
+    persist();
+  });
   // P2-1 番茄钟
   $("#screen").querySelectorAll(".js-focus").forEach(el=>el.onclick=e=>{
     e.stopPropagation();
@@ -1606,7 +1662,9 @@ function openEditor(key, item){
       <div class="field"><label>备注</label><textarea id="f-note" placeholder="补充说明">${esc(d.note||'')}</textarea></div>`;
   } else if(m.type==="checkin"){
     fields=`<div class="field"><label>打卡项</label><input id="f-title" value="${attr(d.title)}" placeholder="例如：喝够 8 杯水"/></div>
-      <p class="sub" style="margin:0">保存后可在列表点击左侧方块打卡；连续天数自动统计，每天从零开始。</p>`;
+      <div class="frow"><div class="field"><label>每日目标</label><input id="f-goal" type="number" min="1" value="${Math.max(1,+d.goal||1)}"/></div>
+      <div class="field"><label>单位</label><input id="f-unit" value="${attr(d.unit||"次")}" placeholder="杯 / 次 / 组"/></div></div>
+      <p class="sub" style="margin:0">目标 = 1 即为「打 / 不打」式打卡；目标 &gt; 1 时点方块每次 +1、可累计到目标。月历里点过去的日期可以直接补签。</p>`;
   } else if(m.type==="progress"){
     fields=`<div class="field"><label>名称</label><input id="f-title" value="${attr(d.title)}" placeholder="书名 / 目标"/></div>
       <div class="frow"><div class="field"><label>当前</label><input id="f-cur" type="number" value="${d.current??0}"/></div>
@@ -1666,6 +1724,7 @@ function openEditor(key, item){
     const seg=id=>{ const el=overlay.querySelector(id+" .on"); return el?el.dataset.v:undefined; };
     d.title=(val("#f-title")||"").trim()||"未命名";
     d.layout=seg("#f-layout")||'default';
+    if(m.type==="checkin"){ d.goal=Math.max(1,+val("#f-goal")||1); d.unit=(val("#f-unit")||"次").trim()||"次"; }
     if(m.type==="todo"){
       d.priority=seg("#f-prio")||d.priority; d.note=(val("#f-note")||"").trim();
       const oldSubs=d.subs||[];
@@ -1693,7 +1752,7 @@ function newItem(m){
   const base={ id: Date.now() };
   let item;
   if(m.type==="todo") item={...base, title:"", priority:(m.priorities&&m.priorities[1]?m.priorities[1].key:"P1"), done:false, note:"", subs:[]};
-  else if(m.type==="checkin") item={...base, title:"", log:{}};
+  else if(m.type==="checkin") item={...base, title:"", log:{}, goal:1, unit:"次"};
   else if(m.type==="progress") item={...base, title:"", current:0, target: (m.unit==="页"?100:20), unit:m.unit||"", note:""};
   else if(m.type==="finance") item={...base, title:"", type:"expense", amount:"", category:(m.categories&&m.categories[0])||"其他", date:isoToday(), repeat:false};
   else item={...base, title:"", content:"", mood:(m.moods&&m.moods[0])||"", date:isoToday()};
