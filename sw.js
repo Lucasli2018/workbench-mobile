@@ -1,7 +1,25 @@
 /* 汪汪时间管理局 · Service Worker
    策略：导航请求网络优先（保证拿到最新 index.html），静态资源缓存优先 + 后台更新。
    注意：Service Worker 只在 https 或 localhost 下生效；用 file:// 直接打开时不受影响。 */
-const CACHE = "workbench-doggy-v4";
+const CACHE = "workbench-doggy-v5";
+
+// 预缓存清单：页面 + 清单 + 图标 + 拆分后的样式与脚本。
+// 改动 src/ 下的文件结构时，记得同步这里并升级 CACHE 版本号。
+const STYLE = [
+  "01-tokens.css", "02-base.css", "03-components.css", "04-features.css", "05-system.css",
+].map((f) => "./src/css/" + f);
+
+const SCRIPT = [
+  "core/date.js", "core/utils.js", "config.js", "core/store.js",
+  "ui/charts.js", "ui/overlays.js", "ui/records.js", "ui/drawer.js", "ui/gestures.js", "ui/panels.js",
+  "features/stats.js", "features/home.js", "features/insight.js",
+  "features/finance.js", "features/notes.js", "features/todo.js", "features/trash.js",
+  "data/safety.js", "data/transfer.js",
+  "core/router.js",
+  "system/a11y.js", "system/theme.js", "system/pwa.js",
+  "boot.js",
+].map((f) => "./src/js/" + f);
+
 const CORE = [
   "./",
   "./index.html",
@@ -12,7 +30,7 @@ const CORE = [
   "./workbench-assets/icon-512.png",
   "./workbench-assets/icon-maskable-512.png",
   "./workbench-assets/apple-touch-icon.png",
-];
+].concat(STYLE, SCRIPT);
 
 self.addEventListener("install", (e) => {
   e.waitUntil((async () => {

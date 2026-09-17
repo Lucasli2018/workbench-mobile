@@ -1,0 +1,40 @@
+/* ============================================================
+   基础层：reset、页面底纹、布局容器、顶部栏。
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--module-2); outline-offset: 2px; border-radius: 4px; }
+button { -webkit-focus-ring-color: var(--module-2); }
+html, body { height: 100%; }
+body {
+  background:
+    radial-gradient(120% 60% at 50% -10%, var(--glow), transparent 60%),
+    linear-gradient(180deg, var(--page-grad-a) 0%, var(--page-bg) 40%, var(--page-grad-b) 100%),
+    var(--page-bg);
+  color: var(--text); font-family: var(--font); font-size: calc(15px * var(--fs)); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  max-width: 480px; margin: 0 auto; position: relative;
+  min-height: 100vh; overflow-x: hidden;
+}
+body::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    var(--page-texture);
+  background-size: 28px 28px, 28px 28px, cover;
+  background-position: center, center, center;
+  opacity: .9; }
+.app { padding: 0 calc(16px + var(--safe-r)) calc(var(--nav-h) + var(--safe-b) + 26px) calc(16px + var(--safe-l)); }
+svg { display: block; }
+
+/* ---------- top bar ---------- */
+.topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px;
+  padding: calc(14px + var(--safe-t)) 2px 12px; backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--page-bg) 94%, transparent), color-mix(in srgb, var(--page-bg) 50%, transparent)); }
+.topbar .menu-btn { width: 38px; height: 38px; border: none; border-radius: var(--radius-tile); background: var(--surface-card);
+  box-shadow: var(--shadow-card); display: grid; place-items: center; cursor: pointer; color: var(--text); }
+.topbar .title { font-size: calc(16px * var(--fs)); font-weight: 700; letter-spacing: -.01em; flex: 1; line-height: 1.2; }
+.topbar .title small { display:block; font-size: calc(11px * var(--fs)); font-weight: 500; color: var(--text-secondary); letter-spacing:.02em; margin-top: 2px; }
+.date-chip { display: inline-flex; align-items: center; gap: 6px; font-size: calc(12px * var(--fs)); color: var(--text-secondary);
+  background: var(--surface-card); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; box-shadow: var(--shadow-card); }
+.date-chip svg { color: var(--text-tertiary); }

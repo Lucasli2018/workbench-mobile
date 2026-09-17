@@ -43,9 +43,26 @@
 
 ```
 workbench-mobile/
-├── index.html              # 主应用（单文件，含全部样式与逻辑）
+├── index.html              # 页面骨架：只放 DOM 结构与资源引用
 ├── manifest.webmanifest    # PWA 清单
 ├── sw.js                   # Service Worker（离线缓存）
+├── src/
+│   ├── css/                # 样式按层拆分，顺序即优先级
+│   │   ├── 01-tokens.css       # 设计令牌：颜色/圆角/阴影/安全区/字号 + 深色与皮肤
+│   │   ├── 02-base.css         # reset、页面底纹、布局容器、顶部栏
+│   │   ├── 03-components.css   # 通用组件：卡片/区块/记录列表/导航/抽屉/弹窗
+│   │   ├── 04-features.css     # 业务样式：洞察图表/月历/记账/搜索/任务增强
+│   │   └── 05-system.css       # 系统层：安全面板/性能/手势/可访问性
+│   └── js/                 # 逻辑按职责拆分，经典脚本共享全局作用域
+│       ├── config.js           # ★ 唯一需要定制的地方：CONFIG + ICONS
+│       ├── boot.js             # 启动装配（必须最后加载）
+│       ├── core/               # date 日期周期 · utils 工具 · store 持久化 · router 视图路由
+│       ├── ui/                 # charts 图表 · overlays 浮层 · records 记录层
+│       │                       # drawer 抽屉 · gestures 手势 · panels 设置面板
+│       ├── features/           # home 首页 · insight 洞察 · stats 统计
+│       │                       # finance 记账 · notes 笔记 · todo 任务 · trash 回收站
+│       ├── data/               # safety 快照与容量 · transfer 导入导出
+│       └── system/             # a11y 可访问性 · theme 主题 · pwa 安装
 └── workbench-assets/
     ├── greet-banner.webp         # 首页 hero 插画（卡通小狗 × 时间机器）
     ├── avatar.webp               # 抽屉默认头像
@@ -55,8 +72,22 @@ workbench-mobile/
     └── apple-touch-icon.png      # iOS 主屏图标
 ```
 
+### 🧩 为什么是多文件却仍能双击打开
+
+脚本用的是**经典 `<script src>`**（不是 ES module），多个脚本共享同一个全局作用域，因此 `file://` 协议下也能正常加载——**双击 `index.html` 就能用，不需要起本地服务器、不需要打包**。
+
+加载顺序即依赖顺序，写在 `index.html` 底部：
+
+```
+core(日期/工具) → config → core(store) → ui → features → data → system → boot
+```
+
+新增功能时：在 `src/js/` 对应目录下加文件，然后在 `index.html` 的脚本列表里按依赖顺序插一行即可。
+
 > 建议在手机浏览器中打开以获得最佳体验；桌面浏览器也可正常使用（最大宽度 480px 居中布局）。
 > 想用「添加到主屏幕 / 离线可用」，需要把整个目录部署到 `https` 或 `localhost`（例如 Gitee + Cloudflare Pages）。
+>
+> ⚠️ 改动 `src/` 下的文件结构后，记得同步 `sw.js` 里的预缓存清单并升级 `CACHE` 版本号，否则老用户会拿到混合版本的缓存。
 
 ---
 
@@ -79,7 +110,8 @@ workbench-mobile/
 
 ## 🛠 技术实现
 
-- **纯前端单文件**：HTML + CSS + 原生 JavaScript，无任何运行时依赖
+- **零依赖，无构建**：HTML + CSS + 原生 JavaScript，按模块拆成 24 个脚本 + 5 个样式表，无任何运行时依赖
+- **模块边界**：`config`（定制）/ `core`（基础设施）/ `ui`（通用界面）/ `features`（业务模块）/ `data`（数据安全）/ `system`（主题·无障碍·PWA）/ `boot`（装配）
 - **数据存储**：浏览器 `localStorage`，数据仅保存在当前设备的当前浏览器中
 - **样式架构**：颜色 / 圆角 / 阴影 / 背景图 / 安全区 / 字号缩放全部通过 CSS 变量（`:root` token）管理；深色模式是 `html[data-theme="dark"]` 令牌覆盖，组件零改动
 - **PWA**：`manifest.webmanifest` + Service Worker（静态资源 cache-first、页面导航 network-first），可装机、可离线
@@ -127,7 +159,7 @@ workbench-mobile/
 
 ## 🎨 自定义指南
 
-所有可定制内容集中在 `index.html` 的 `<script>` 顶部的 `CONFIG` 对象中：
+所有可定制内容集中在 **`src/js/config.js`** 的 `CONFIG` 对象中（原来在 `index.html` 的 `<script>` 顶部）：
 
 | 配置项 | 说明 |
 | --- | --- |
