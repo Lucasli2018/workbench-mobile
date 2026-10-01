@@ -6,6 +6,11 @@
 :focus-visible { outline: 2px solid var(--module-2); outline-offset: 2px; border-radius: 4px; }
 button { -webkit-focus-ring-color: var(--module-2); }
 html, body { height: 100%; }
+/* 移动端缩放锁：touch-action:manipulation 在保留单指滚动/卡片滑动的前提下关闭「双击放大」
+   （顺带去掉 300ms 点击延迟）；text-size-adjust 防止横屏时系统自动放大字号。
+   Android 的捏合缩放由 index.html 的 viewport（user-scalable=no / maximum-scale=1）兜住；
+   iOS Safari 会忽略该 viewport 字段，所以这里必须再补一道 touch-action。 */
+html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   background:
     radial-gradient(120% 60% at 50% -10%, var(--glow), transparent 60%),

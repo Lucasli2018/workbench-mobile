@@ -1,7 +1,7 @@
 /* 汪汪时间管理局 · Service Worker
    策略：导航请求网络优先（保证拿到最新 index.html），静态资源缓存优先 + 后台更新。
    注意：Service Worker 只在 https 或 localhost 下生效；用 file:// 直接打开时不受影响。 */
-const CACHE = "workbench-doggy-v5";
+const CACHE = "workbench-doggy-v6";
 
 // 预缓存清单：页面 + 清单 + 图标 + 拆分后的样式与脚本。
 // 改动 src/ 下的文件结构时，记得同步这里并升级 CACHE 版本号。

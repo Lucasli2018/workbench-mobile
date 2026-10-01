@@ -112,8 +112,27 @@ function onGlobalKeydown(e){
   el.click();
 }
 
+/* ---- 双击放大拦截（兜底） ----
+   主防线是 CSS 的 touch-action:manipulation + index.html 的 viewport；
+   这里再拦一道，覆盖 iOS Safari 12 及更早版本仍会响应双击放大的情况。
+   300ms 内的第二次 touchend 直接 preventDefault，取消随后的合成 click 与缩放。
+   只吃「双击」这一种手势：单指滚动、卡片滑动（走 pointer 事件）、双指捏合均不拦截。 */
+
+function bindZoomLock(){
+  let lastTap = 0, pinching = false;
+  document.addEventListener("touchstart", (e)=>{ pinching = e.touches.length > 1; }, { passive:true });
+  document.addEventListener("touchend", (e)=>{
+    const now = Date.now();
+    const dbl = now - lastTap <= 300;
+    lastTap = now;
+    if(pinching){ pinching = e.touches.length > 1; return; }   // 双指手势放行
+    if(dbl && e.cancelable) e.preventDefault();
+  }, { passive:false });
+}
+
 function initA11y(){
   applyFs();
+  bindZoomLock();
   $("#topTitle").setAttribute("role","heading");
   $("#topTitle").setAttribute("aria-level","1");
   $("#brandCam").setAttribute("aria-hidden","true");
