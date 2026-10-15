@@ -112,7 +112,7 @@ function openCloudPanel() {
 
   function paint() {
     if (!CLOUD.on) {
-      sub.textContent = "未检测到云端服务（当前为纯本地模式，数据仅存本机）。部署 Pages Functions + D1 后即可启用云端同步。";
+      sub.textContent = "尚未部署云端后端，当前为纯本地模式（数据仅存本机）。仓库已配好 wrangler.toml（已绑定 dev 库，database_id 已预填）与 schema.sql，按 README「云端同步」章节部署 Cloudflare Pages Functions + D1 后，即可在此用账号名 + 密码登录并多设备同步。";
       body.innerHTML = "";
       setStatus("");
       return;

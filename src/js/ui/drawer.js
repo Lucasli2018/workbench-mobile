@@ -18,7 +18,7 @@ function buildDrawer(){
     `<div class="ditem" data-tool="data">${icon("database",20)}存储与安全<span class="dstate">${storageKB()} KB</span></div>`,
     `<div class="ditem" data-tool="export">${icon("download",20)}导出数据</div>`,
     `<div class="ditem" data-tool="import">${icon("upload",20)}导入数据</div>`,
-    `<div class="ditem" data-tool="cloud">${icon("cloud",20)}云端同步<span class="dstate">${cloudUser?esc(cloudUser):(CLOUD.on?"未登录":"不可用")}</span></div>`,
+    `<div class="ditem" data-tool="cloud">${icon("cloud",20)}云端同步<span class="dstate">${cloudUser?esc(cloudUser):(CLOUD.on?"点击登录":"未部署")}</span></div>`,
     `<div class="ditem" data-tool="rollover">${icon("repeat",20)}每日自动结转<span class="dstate">${data.__todoRollover===false?"已关闭":"已开启"}</span></div>`,
     `<div class="ditem" data-tool="theme">${icon("moon",20)}主题与外观<span class="dstate">${THEME_LABEL[themePref()]} · ${SKIN_LABEL[skinPref()]} · 字号${FS_LABEL[fsPref()]}</span></div>`,
     `<div class="ditem" data-tool="trash">${icon("trash",20)}回收站<span class="dstate">${(Array.isArray(data.__trash)?data.__trash.length:0) || ""}</span></div>`,
