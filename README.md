@@ -64,8 +64,8 @@ workbench-mobile/
 │       ├── data/               # safety 快照与容量 · transfer 导入导出
 │       └── system/             # a11y 可访问性 · theme 主题 · pwa 安装
 └── workbench-assets/
-    ├── greet-banner.webp         # 首页 hero 插画（卡通小狗 × 时间机器）
-    ├── avatar.webp               # 抽屉默认头像
+    ├── greet-banner.jpg         # 首页 hero 插画（卡通小狗 × 时间机器）
+    ├── avatar.jpg               # 抽屉默认头像
     ├── icon-192.png              # 应用图标
     ├── icon-512.png
     ├── icon-maskable-512.png     # Android 自适应图标
@@ -110,7 +110,7 @@ core(日期/工具) → config → core(store) → ui → features → data → 
 
 - **禁止双击放大**：三处配合。`index.html` 的 viewport 写 `maximum-scale=1.0, user-scalable=no`（管 Android 捏合），`src/css/02-base.css` 对 `html, body` 设 `touch-action: manipulation`（管双击放大，顺带去掉 300ms 点击延迟，单指滚动与卡片滑动不受影响），`src/js/system/a11y.js` 的 `bindZoomLock()` 做最后兜底（覆盖 iOS Safari 早期版本，仅拦截 300ms 内的第二次 `touchend`）。
 - **字号无障碍兜底**：因为锁了系统缩放，请用「抽屉 → 主题与外观 → 字号」的三档字缩放（`--fs`）替代。
-- ⚠️ **CSS 自定义属性里的 `url()` 按「声明它的样式表」的路径解析，不是相对 HTML**。`--greet-image` 声明在 `src/css/01-tokens.css`，所以必须写 `../../workbench-assets/greet-banner.webp`（两级回退到项目根）。写成 `workbench-assets/…` 会被解析成 `src/css/workbench-assets/…` → 404，首页 hero 图静默空白、控制台只报一条 404。新增任何背景图 token 都按此规则。
+- ⚠️ **CSS 自定义属性里的 `url()` 按「声明它的样式表」的路径解析，不是相对 HTML**。`--greet-image` 声明在 `src/css/01-tokens.css`，所以必须写 `../../workbench-assets/greet-banner.jpg`（两级回退到项目根）。写成 `workbench-assets/…` 会被解析成 `src/css/workbench-assets/…` → 404，首页 hero 图静默空白、控制台只报一条 404。新增任何背景图 token 都按此规则。
 
 ---
 

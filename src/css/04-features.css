@@ -83,7 +83,7 @@
 /* ---- 全局搜索 ---- */
 .search-box { display:flex; align-items:center; gap:8px; background:var(--surface-card); border:1px solid var(--border); border-radius:999px; padding:8px 12px; margin:6px 0 14px; box-shadow:var(--shadow-card); }
 .search-box .s-ic { color:var(--text-tertiary); flex:0 0 auto; }
-.search-box input { flex:1; border:none; outline:none; background:transparent; font-size: calc(14px * var(--fs)); color:var(--text); font-family:var(--font); }
+.search-box input { flex:1; border:none; outline:none; background:transparent; font-size: max(16px, calc(14px * var(--fs))); color:var(--text); font-family:var(--font); }
 .search-box input::placeholder { color:var(--text-tertiary); }
 .search-box .s-clear { border:none; background:transparent; color:var(--text-tertiary); cursor:pointer; display:grid; place-items:center; padding:2px; }
 .search-rec { cursor:pointer; margin-top:8px; }
@@ -220,8 +220,8 @@
 .tchip b { font-size: calc(13px * var(--fs)); font-weight:600; color:var(--text); }
 .tchip span { font-size: calc(11px * var(--fs)); color:var(--text-secondary); }
 .cat-row { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
-.cat-row input.cat-name { flex:1; min-width:0; padding:8px 10px; font-size: calc(13.5px * var(--fs)); }
-.cat-row input.cat-bud { flex:0 0 78px; padding:8px 10px; font-size: calc(13.5px * var(--fs)); }
+.cat-row input.cat-name { flex:1; min-width:0; padding:8px 10px; font-size: max(16px, calc(13.5px * var(--fs))); }
+.cat-row input.cat-bud { flex:0 0 78px; padding:8px 10px; font-size: max(16px, calc(13.5px * var(--fs))); }
 .cat-row .tpl-name { flex:1; font-size: calc(14px * var(--fs)); font-weight:600; }
 .cat-row .tpl-amt { font-size: calc(12px * var(--fs)); color:var(--text-secondary); }
 .catbud-wrap .ph { display:flex; align-items:center; gap:6px; font-size: calc(12.5px * var(--fs)); font-weight:700; color:var(--text-secondary); }

@@ -206,7 +206,9 @@
 .modal .sub { color: var(--text-secondary); font-size: calc(13px * var(--fs)); margin: 4px 0 16px; }
 .field { margin-bottom: 13px; }
 .field label { display:block; color: var(--text-secondary); font-size: calc(12px * var(--fs)); margin-bottom: 6px; }
-input, select, textarea { font-family: var(--font); font-size: calc(15px * var(--fs)); border: 1px solid var(--border-input); border-radius: var(--radius-tile);
+/* P3-7 输入框字号地板 16px：iOS Safari 聚焦 <16px 的输入框会强制放大页面，
+   故用 max(16px, …) 保底；max 内仍乘 --fs，三者档位(小.9/中1/大1.16)均 ≥16px 不触发缩放。 */
+input, select, textarea { font-family: var(--font); font-size: max(16px, calc(15px * var(--fs))); border: 1px solid var(--border-input); border-radius: var(--radius-tile);
   padding: 11px 12px; background: var(--surface-card); color: var(--text); outline:none; width: 100%; transition: border-color .15s, box-shadow .15s; }
 textarea { resize: vertical; min-height: 74px; }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-muted); }

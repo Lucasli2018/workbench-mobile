@@ -49,7 +49,7 @@
      注意：自定义属性里的 url() 由浏览器按「声明它的那份样式表」的路径解析（不是相对 HTML）。
      本文件位于 src/css/，故必须写 ../../workbench-assets/… 才能命中项目根的 workbench-assets/；
      少写或写错层级都会被解析成 src/css/workbench-assets/… 而 404，首页 hero 图随即空白。 */
-  --greet-image: url("../../workbench-assets/greet-banner.webp");  /* 首页 hero 背景图 */
+  --greet-image: url("../../workbench-assets/greet-banner.jpg");  /* 首页 hero 背景图 */
   --page-texture: none;                            /* 页面纹理叠加（none 或 url(...)），不影响内容层 */
 
   /* ---- 圆角 ---- */
