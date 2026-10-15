@@ -71,3 +71,6 @@ bindKeyboardInset();
 initA11y();
 if(!data.__onboarded) showOnboarding();
 if($("#bootSk")) $("#bootSk").remove();
+
+// 探测云端后端与会话态（无后端时自动降级为纯本地模式），完成后刷新抽屉里的同步状态
+bootCloud().then(buildDrawer).catch(()=>{});

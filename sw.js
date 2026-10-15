@@ -1,7 +1,7 @@
 /* 汪汪时间管理局 · Service Worker
    策略：导航请求网络优先（保证拿到最新 index.html），静态资源缓存优先 + 后台更新。
    注意：Service Worker 只在 https 或 localhost 下生效；用 file:// 直接打开时不受影响。 */
-const CACHE = "workbench-doggy-v6";
+const CACHE = "workbench-doggy-v7";
 
 // 预缓存清单：页面 + 清单 + 图标 + 拆分后的样式与脚本。
 // 改动 src/ 下的文件结构时，记得同步这里并升级 CACHE 版本号。
@@ -13,7 +13,7 @@ const SCRIPT = [
   "core/date.js", "core/utils.js", "config.js", "core/store.js",
   "ui/charts.js", "ui/overlays.js", "ui/records.js", "ui/drawer.js", "ui/gestures.js", "ui/panels.js",
   "features/stats.js", "features/home.js", "features/insight.js",
-  "features/finance.js", "features/notes.js", "features/todo.js", "features/trash.js",
+  "features/finance.js", "features/notes.js", "features/todo.js", "features/trash.js", "features/cloud.js",
   "data/safety.js", "data/transfer.js",
   "core/router.js",
   "system/a11y.js", "system/theme.js", "system/pwa.js",
@@ -71,6 +71,12 @@ self.addEventListener("fetch", (e) => {
   let url;
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== self.location.origin) return;
+
+  // API 请求（/api/*）一律走网络、不经过缓存，避免拿到过期的会话态或同步结果
+  if (url.pathname.startsWith("/api/")) {
+    e.respondWith(fetch(req));
+    return;
+  }
 
   // 导航请求，以及任何形态的 index.html / 根路径，都走网络优先
   if (req.mode === "navigate" || url.pathname.endsWith("/") || url.pathname.endsWith("/index.html")) {

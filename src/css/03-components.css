@@ -223,3 +223,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .btn.ghost { flex: 0 0 auto; background: var(--surface-nested); color: var(--text-secondary); border: 1px solid var(--border-input); padding: 13px 20px; }
 .btn.danger { background: var(--danger); }
 .link-danger { color: var(--danger); background:none; border:none; font-size: calc(14px * var(--fs)); font-weight: 600; cursor:pointer; }
+.cloud-actions { margin-top: 4px; }
+.cl-status { margin-top: 12px; font-size: calc(13px * var(--fs)); font-weight: 600; min-height: 18px; line-height: 1.4; }
+.cl-status.ok { color: var(--module-1); }
+.cl-status.err { color: var(--danger); }
