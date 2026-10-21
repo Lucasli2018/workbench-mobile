@@ -72,5 +72,8 @@ initA11y();
 if(!data.__onboarded) showOnboarding();
 if($("#bootSk")) $("#bootSk").remove();
 
-// 探测云端后端与会话态（无后端时自动降级为纯本地模式），完成后刷新抽屉里的同步状态
-bootCloud().then(buildDrawer).catch(()=>{});
+// 探测云端后端与会话态（无后端时自动降级为纯本地模式），完成后刷新抽屉里的同步状态，
+// 并触发一次「每日自动同步」（若已开启、已登录、且今天尚未同步）
+bootCloud().then(()=>{ buildDrawer(); ensureCloudAutoSync(); }).catch(()=>{});
+// 设备恢复联网且当天尚未同步时，补一次自动同步
+window.addEventListener("online", () => { if(data.__cloudAutoSync===true && cloudUser) ensureCloudAutoSync(); });

@@ -192,6 +192,13 @@
 .drawer .ditem svg { color: var(--drawer-text-mute); }
 .drawer .ditem.active { background: var(--drawer-active); color:var(--drawer-text); font-weight: 700; }
 .drawer .ditem.active svg { color:var(--drawer-text); }
+/* 抽屉内开关（每日自动同步等）：iOS 风格，珊瑚橙点亮，适配抽屉配色 */
+.drawer .ditem .dswitch { margin-left:auto; position:relative; width:44px; height:26px; border-radius:999px; flex:0 0 auto;
+  background: color-mix(in srgb, var(--drawer-text) 22%, transparent); transition: background .18s; cursor:pointer; }
+.drawer .ditem .dswitch.on { background: var(--accent); }
+.drawer .ditem .dswitch .dknob { position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.35); transition: transform .18s cubic-bezier(.2,.8,.25,1); }
+.drawer .ditem .dswitch.on .dknob { transform: translateX(18px); }
 .drawer .dfoot { font-size: calc(11px * var(--fs)); opacity:.45; padding: 20px 22px 28px; }
 
 /* ---------- modal ---------- */

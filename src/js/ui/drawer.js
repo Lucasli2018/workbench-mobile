@@ -19,6 +19,7 @@ function buildDrawer(){
     `<div class="ditem" data-tool="export">${icon("download",20)}导出数据</div>`,
     `<div class="ditem" data-tool="import">${icon("upload",20)}导入数据</div>`,
     `<div class="ditem" data-tool="cloud">${icon("cloud",20)}云端同步<span class="dstate">${cloudUser?esc(cloudUser):(CLOUD.on?"点击登录":"未部署")}</span></div>`,
+    `<div class="ditem" data-tool="autosync">${icon("sync",20)}每日自动同步<span class="dswitch ${data.__cloudAutoSync===true?"on":""}"><span class="dknob"></span></span></div>`,
     `<div class="ditem" data-tool="rollover">${icon("repeat",20)}每日自动结转<span class="dstate">${data.__todoRollover===false?"已关闭":"已开启"}</span></div>`,
     `<div class="ditem" data-tool="theme">${icon("moon",20)}主题与外观<span class="dstate">${THEME_LABEL[themePref()]} · ${SKIN_LABEL[skinPref()]} · 字号${FS_LABEL[fsPref()]}</span></div>`,
     `<div class="ditem" data-tool="trash">${icon("trash",20)}回收站<span class="dstate">${(Array.isArray(data.__trash)?data.__trash.length:0) || ""}</span></div>`,
@@ -33,6 +34,7 @@ function buildDrawer(){
         else if(t==="export") openExportPanel();
         else if(t==="import") $("#importInput").click();
         else if(t==="cloud") openCloudPanel();
+        else if(t==="autosync") toggleAutoSync();
         else if(t==="rollover"){
           const cur=(data.__todoRollover!==false);
           data.__todoRollover=!cur; store.save(); buildDrawer();
@@ -46,6 +48,15 @@ function buildDrawer(){
   });
   // P3-6 数据工具条目在 innerHTML 之后补语义（必须放在这里，否则会盖到上一批旧节点上）
   $("#drawerTools").querySelectorAll(".ditem").forEach(el=>{
+    // 自动同步行是开关，用 role=switch 暴露正确的无障碍语义，并支持键盘切换
+    if(el.dataset.tool==="autosync"){
+      el.setAttribute("role","switch");
+      el.setAttribute("aria-checked", data.__cloudAutoSync===true ? "true" : "false");
+      el.setAttribute("aria-label", "每日自动同步到云端" + (data.__cloudAutoSync===true ? "（已开启）" : "（已关闭）"));
+      el.setAttribute("tabindex","0");
+      el.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggleAutoSync(); } });
+      return;
+    }
     el.setAttribute("role","button");
     el.setAttribute("tabindex","0");
     el.setAttribute("aria-label", el.textContent.replace(/\s+/g," ").trim());

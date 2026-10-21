@@ -57,7 +57,52 @@ async function cloudLogin(name, pw) {
 }
 async function cloudLogout() {
   try { await apiFetch("/api/logout", { method: "POST" }); } catch (e) {}
-  cloudUser = null; delete data.__cloudUser; store.save();
+  cloudUser = null; delete data.__cloudUser;
+  // 退出云端账号后，自动同步失去意义，关闭之（下次登录可重新开启）
+  data.__cloudAutoSync = false;
+  store.save();
+}
+
+/* ---------- 每日自动同步（抽屉开关控制） ---------- */
+// 执行一次「本地 → 云端」同步；返回是否成功。离线 / 无后端 / 并发中静默失败返回 false，不弹错误。
+let cloudAutoSyncRunning = false;
+async function cloudAutoSyncRun() {
+  if (cloudAutoSyncRunning) return false;
+  if (!cloudOnline()) return false;          // 离线 / 未部署后端：静默跳过，下次再试
+  cloudAutoSyncRunning = true;
+  try {
+    await cloudPush();
+    data.__cloudAutoSyncLast = today();       // 记录今天已同步，避免重复推送
+    store.save();
+    return true;
+  } catch (e) {
+    return false;
+  } finally {
+    cloudAutoSyncRunning = false;
+  }
+}
+// 启动 / 恢复联网时调用：仅在已开启、已登录、且今天还没同步过时执行。
+async function ensureCloudAutoSync() {
+  if (data.__cloudAutoSync !== true) return;
+  if (!cloudUser) return;                              // 未登录不自动同步
+  if (data.__cloudAutoSyncLast === today()) return;     // 今天已同步过
+  const ok = await cloudAutoSyncRun();
+  if (ok) toast("已自动同步到云端 ✓");
+  else if (cloudOnline()) toast("自动同步未成功，稍后重试", "error");
+}
+// 抽屉开关：开启 / 关闭每日自动同步（开启前须先登录云端账号）。
+function toggleAutoSync() {
+  const cur = (data.__cloudAutoSync === true);
+  if (!cur) {
+    if (!cloudUser) { toast("请先在「云端同步」里登录账号，才能开启自动同步"); return; }
+    data.__cloudAutoSync = true; store.save(); buildDrawer();
+    toast("已开启：每天打开时自动同步到云端");
+    // 立即同步一次，给出即时反馈
+    cloudAutoSyncRun().then(ok => { if (ok) toast("已自动同步到云端 ✓"); else toast("首次同步失败，将于下次打开时重试", "error"); });
+  } else {
+    data.__cloudAutoSync = false; store.save(); buildDrawer();
+    toast("已关闭每日自动同步");
+  }
 }
 
 /* ---------- 双向同步 ---------- */

@@ -148,6 +148,7 @@ const ICONS = {
   database:'<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  sync:'<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 21v-5h-5"/>',
   grip:'<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/>',
   clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.4V12l3.2 1.9"/>',
   play:'<path d="M7.5 4.8 19 12 7.5 19.2z"/>',
