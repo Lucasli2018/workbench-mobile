@@ -496,7 +496,7 @@ function openEditor(key, item){
   overlay.innerHTML=`<div class="modal"><div class="grab"></div>
     <h2>${editing?'编辑':'新建'} · ${m.name}</h2><div class="sub">${m.desc}</div>
     ${fields}
-    <div class="modal-actions">${editing?'<button class="link-danger" id="m-del">删除</button>':''}
+    <div class="modal-actions">${editing?'<button class="link-danger" id="m-del">删除</button><button class="link" id="m-dup">复制此条</button>':''}
       <button class="btn ghost" id="m-cancel">取消</button><button class="btn" id="m-save">保存</button></div></div>`;
   document.body.appendChild(overlay);
   const close=()=>overlay.remove();
@@ -526,6 +526,15 @@ function openEditor(key, item){
     };
   }
   if(editing) overlay.querySelector("#m-del").onclick=()=>{ close(); confirmDelete(key, d.id); };
+  if(editing) overlay.querySelector("#m-dup").onclick=()=>{
+    const copy=JSON.parse(JSON.stringify(d));
+    copy.id=Date.now(); copy.pinned=false;
+    if(m.type==="todo"){ copy.done=false; copy.subs=(copy.subs||[]).map(s=>({t:s.t,done:false})); }
+    if(m.type==="checkin"||m.type==="progress") copy.log={};
+    (data[key]=data[key]||[]).unshift(copy);
+    persist(); close();
+    toast("已复制为一条新记录","success");
+  };
   overlay.querySelector("#m-save").onclick=()=>{
     const val=id=>{ const el=overlay.querySelector(id); return el?el.value:undefined; };
     const seg=id=>{ const el=overlay.querySelector(id+" .on"); return el?el.dataset.v:undefined; };
