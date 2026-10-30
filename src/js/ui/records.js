@@ -75,7 +75,8 @@ function headHero(m, big, label, pct){
 function recHTML(m,x){
   const pin=`<button class="pin-btn js-pin ${x.pinned?'on':''}" data-id="${x.id}" title="置顶">${icon("star",15)}</button>`;
   const del=`<button class="del js-del" data-id="${x.id}" title="删除">${icon("trash",16)}</button>`;
-  const acts=`<div class="acts">${pin}${del}</div>`;
+  const editBtn=`<button class="edit js-edit" data-id="${x.id}" title="编辑">${icon("pen",16)}</button>`;
+  const acts=`<div class="acts">${pin}${editBtn}${del}</div>`;
   const chkMark=icon("check",14,2.4);
   const thumb=x.image?`<img class="thumb" src="${attr(x.image)}" alt="">`:'';
   const customMeta=(m.fields||[]).filter(f=>x[f.key]).map(f=>`<span class="meta-tag">${esc(x[f.key])}</span>`).join("");
@@ -297,6 +298,7 @@ const REC_ROUTES = [
   { sel:".js-chk",     act:"chk" },
   { sel:".js-del",     act:"del" },
   { sel:".js-pin",     act:"pin" },
+  { sel:".js-edit",    act:"edit" },
   { sel:".js-focus",   act:"focus" },
   { sel:".js-prog",    act:"prog" },
   { sel:".js-ckminus", act:"ckminus" },

@@ -113,6 +113,7 @@
 .rec .pin-btn.on { color: var(--module-3); }
 .rec .pin-btn.on svg { fill: var(--module-3); }
 .rec .del:hover { background: var(--danger-muted); color: var(--danger); }
+.rec .edit:hover { background: var(--accent-muted); color: var(--accent); }
 .rec .pbar { height: 5px; border-radius:999px; background: var(--border); overflow:hidden; margin-top: 10px; }
 .rec .pbar i { display:block; height:100%; border-radius:999px; }
 .rec .amt { font-size: calc(16px * var(--fs)); font-weight: 700; letter-spacing:-.02em; margin-right: 56px; white-space:nowrap; }
