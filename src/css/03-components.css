@@ -99,10 +99,11 @@
 .rec .chk.on { background: var(--module-1); border-color: var(--module-1); }
 .rec .chk svg { opacity: 0; }
 .rec .chk.on svg { opacity: 1; }
-.rec .body { flex:1; min-width:0; padding-right: 106px; }
-.rec .rname { font-weight: 600; font-size: calc(14.5px * var(--fs)); letter-spacing: -.01em; }
+.rec .body { flex:1; min-width:0; }
+.rec .rname { font-weight: 600; font-size: calc(14.5px * var(--fs)); letter-spacing: -.01em; padding-right: 96px; }
 .rec .rname.done { text-decoration: line-through; color: var(--text-secondary); }
 .rec .rmeta { display:flex; flex-wrap:wrap; gap: 7px; margin-top: 7px; align-items:center; }
+.rec .rmeta > * { flex:0 0 auto; white-space:nowrap; }
 .rec .rnote { color: var(--text-secondary); font-size: calc(12.5px * var(--fs)); margin-top: 7px; white-space: pre-wrap; line-height: 1.55; }
 .badge { display:inline-flex; align-items:center; gap:5px; padding: 2px 9px; border-radius: 999px; font-size: calc(11px * var(--fs)); font-weight: 600; }
 .badge .dot { width:6px;height:6px;border-radius:50%;background:currentColor; }
