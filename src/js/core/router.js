@@ -17,6 +17,7 @@ function render(){
   else { const m=modOf(view); $("#topTitle").firstChild.textContent=m?m.name:CONFIG.owner; $("#topSub").textContent=m?m.desc:""; }
   // nav active
   $("#nav").querySelector('[data-nav="home"]').classList.toggle("active", view==="home");
+  $("#nav").querySelector('[data-nav="money"]').classList.toggle("active", view==="money");
   $("#nav").querySelector('[data-nav="insight"]').classList.toggle("active", view==="insight");
   // render body
   if(view==="home") renderHome();

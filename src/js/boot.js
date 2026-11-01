@@ -17,8 +17,8 @@ $("#btn-search").innerHTML = icon("search",20);
 $("#btn-search").onclick = ()=>{ view = (view==="search")?"home":"search"; render(); };
 document.querySelectorAll('#nav .n').forEach(n=>{
   const t=n.dataset.nav;
-  const label = t==="home" ? "首页" : t==="insight" ? "洞察" : "模块";
-  n.innerHTML = icon(t==="home"?"home":t==="insight"?"chart":"grid",21)+"<span>"+label+"</span>";
+  const label = t==="home" ? "首页" : t==="insight" ? "洞察" : t==="money" ? "记账" : "模块";
+  n.innerHTML = icon(t==="home"?"home":t==="insight"?"chart":t==="money"?"wallet":"grid",21)+"<span>"+label+"</span>";
   n.setAttribute("role","button");          // P3-6 底部导航可被读屏与键盘识别
   n.setAttribute("tabindex","0");
   n.setAttribute("aria-label", t==="drawer" ? "打开模块列表" : label);

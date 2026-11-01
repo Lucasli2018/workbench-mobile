@@ -166,7 +166,7 @@
 /* ---------- bottom nav ---------- */
 .nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 480px; height: var(--nav-h);
   background: var(--nav-bg); backdrop-filter: blur(14px); border-top: 1px solid var(--border);
-  display: grid; grid-template-columns: repeat(3,1fr); align-items: center; z-index: 30; padding-bottom: env(safe-area-inset-bottom); }
+  display: grid; grid-template-columns: repeat(4,1fr); align-items: center; z-index: 30; padding-bottom: env(safe-area-inset-bottom); }
 .nav .n { display:flex; flex-direction:column; align-items:center; gap: 4px; cursor:pointer; color: var(--text-tertiary); font-size: calc(10px * var(--fs)); font-weight: 500; }
 .nav .n.active { color: var(--accent); font-weight: 700; }
 
